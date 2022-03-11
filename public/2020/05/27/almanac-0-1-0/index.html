@@ -64,13 +64,13 @@
 
     <section class="post-content">
         
-<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+<script src="https://blog.davisvaughan.com/2020/05/27/almanac-0-1-0/index_files/header-attrs/header-attrs.js"></script>
 
 
 <p>I’m very excited to announce that the first release of <a href="https://davisvaughan.github.io/almanac/index.html">almanac</a> has made its way to CRAN! almanac is a package for working with <em>recurring events</em>. These typically include dates that occur on some kind of recurring basis, like weekends or holidays. As you’ll soon see, one of the most powerful features of almanac is the ability to build up a set of these recurring events, like a company’s holiday calendar, so that you can then shift a vector of dates by, say, 5 business days, skipping over any weekends or holidays that might be specific to your company.</p>
 <pre class="r"><code>library(almanac)</code></pre>
-<div id="recurrence-rules" class="section level2">
-<h2>Recurrence Rules</h2>
+<div id="recurrence-rules" class="section level3">
+<h3>Recurrence Rules</h3>
 <p>To start working with recurring events, we’ll need a way to define when those events happen. This is known as a <em>recurrence rule</em>, and is most easily built up using a chain of pipes like this:</p>
 <pre class="r"><code>on_thursday &lt;- weekly() %&gt;%
   recur_on_wday(&quot;Thursday&quot;)</code></pre>
@@ -97,8 +97,8 @@ on_thanksgiving</code></pre>
 alma_in(x, on_thanksgiving)</code></pre>
 <pre><code>## [1]  TRUE FALSE</code></pre>
 </div>
-<div id="recurrence-bundles" class="section level2">
-<h2>Recurrence Bundles</h2>
+<div id="recurrence-bundles" class="section level3">
+<h3>Recurrence Bundles</h3>
 <p>Recurrence rules just scratch the surface of what almanac can do. They are powerful on their own, but they can’t answer every question. An easy way to see their limitations is to try and construct a rule that defines Christmas <em>or</em> Thanksgiving as events. You can easily create rules for the individual holidays, but it would be impossible to create 1 rule that captures both. This is where <em>recurrence bundles</em> come in. They allow you to combine the event sets of multiple rules together in a variety of ways using set-based logic. Here’s a recurrence bundle for Christmas or Thanksgiving:</p>
 <pre class="r"><code>on_christmas &lt;- yearly() %&gt;%
   recur_on_mday(25) %&gt;%
@@ -148,8 +148,8 @@ not_exists &lt;- !exists
 hldys_2010_2015[not_exists]</code></pre>
 <pre><code>## [1] &quot;2013-12-25&quot; &quot;2015-11-26&quot;</code></pre>
 </div>
-<div id="adjusters" class="section level2">
-<h2>Adjusters</h2>
+<div id="adjusters" class="section level3">
+<h3>Adjusters</h3>
 <p>There are other things that you can do with these recurrence rules and bundles beyond just generating dates in their event sets. One powerful idea is to take an existing vector of dates and <em>adjust</em> it in the places where it lands on an event defined by a recurrence bundle.</p>
 <p>almanac comes with a number of adjusters that specify what kind of adjustment to make when this happens. For example, <code>adj_following()</code> will adjust to the next non-event date, and <code>adj_preceding()</code> will adjust to the preceding one.</p>
 <pre class="r"><code>christmas &lt;- &quot;2019-12-25&quot;
@@ -159,8 +159,8 @@ adj_following(christmas, on_christmas)</code></pre>
 <pre class="r"><code>adj_preceding(christmas, on_christmas)</code></pre>
 <pre><code>## [1] &quot;2019-12-24&quot;</code></pre>
 </div>
-<div id="adjusted-rules" class="section level2">
-<h2>Adjusted rules</h2>
+<div id="adjusted-rules" class="section level3">
+<h3>Adjusted rules</h3>
 <p>These adjusters are critical low-level components that power more interesting aspects of almanac. One of those is an <em>adjusted rule</em>.</p>
 <p>To motivate it, imagine your company deems Christmas to be a holiday. Whenever Christmas rolls around on the 25th of December, you get that day off. But what happens when Christmas falls on a Saturday? What about Sunday? Most corporations will <em>observe</em> a holiday that falls on the weekend on the nearest working day instead of on the weekend date that it actually occurred on.</p>
 <p>In almanac, it seems like this would pose a problem. You can create rules for Christmas and for weekends, but a recurrence bundle like runion, rintersect, or rsetdiff can only perform some kind of set operation on those individual rules. What you really need is a way to say: recur on the dates defined by this rule, unless it intersects with this second rule. In those cases, apply an adjustment to the intersected dates to create valid dates. This is the job of the adjusted rule.</p>
@@ -195,8 +195,8 @@ on_adjusted_christmas</code></pre>
 alma_search(&quot;2002-01-01&quot;, &quot;2006-01-01&quot;, on_adjusted_christmas)</code></pre>
 <pre><code>## [1] &quot;2002-12-25&quot; &quot;2003-12-25&quot; &quot;2004-12-24&quot; &quot;2005-12-26&quot;</code></pre>
 </div>
-<div id="stepping" class="section level2">
-<h2>Stepping</h2>
+<div id="stepping" class="section level3">
+<h3>Stepping</h3>
 <pre class="r"><code>library(lubridate, warn.conflicts = FALSE)</code></pre>
 <p><code>alma_step()</code> allows you to take an existing vector of dates and shift it by a number of days, “stepping over” any events in the event set defined by a recurrence object. This is generally useful for shifting by “N business days”, where the logic for a business day is encapsulated in the rule.</p>
 <p>You can think of <code>alma_step()</code> as a way to replace lubridate’s <code>x + days(5)</code> with <code>x + business_days(5)</code> where <code>business_days()</code> is specific to your company’s holiday calendar.</p>
@@ -226,8 +226,8 @@ data.frame(
 <li>Apply <code>adj_following()</code>, but nothing needs to be done.</li>
 </ul>
 </div>
-<div id="steppers" class="section level2">
-<h2>Steppers</h2>
+<div id="steppers" class="section level3">
+<h3>Steppers</h3>
 <p><code>alma_step()</code> is nice, but it would be really nice to have something like lubridate’s <code>x + days(5)</code> syntax, but relative to a recurrence rule. Due to some issues with how R’s S3 dispatch system works with <code>+</code>, this isn’t exactly replicable with almanac, but you can get close.
 <span class="marginnote">
 lubridate uses R’s S4 object oriented system to get it to work, but I don’t want to go there
@@ -246,12 +246,12 @@ wednesday &lt;- as.Date(&quot;2019-12-18&quot;)
 wednesday %s+% working_days(1:3)</code></pre>
 <pre><code>## [1] &quot;2019-12-19&quot; &quot;2019-12-20&quot; &quot;2019-12-23&quot;</code></pre>
 </div>
-<div id="vacation" class="section level2">
-<h2>Vacation</h2>
+<div id="vacation" class="section level3">
+<h3>Vacation</h3>
 <p>I don’t really expect you to build all of your holidays and calendars from scratch. almanac holds the building blocks so that this is all possible, but an add-on package, <a href="https://github.com/DavisVaughan/vacation">vacation</a>, will eventually hold pre-generated holidays and calendars (like the US Federal calendar) with more bells and whistles.</p>
 </div>
-<div id="learning-more" class="section level2">
-<h2>Learning More</h2>
+<div id="learning-more" class="section level3">
+<h3>Learning More</h3>
 <p>To learn more about almanac, visit <a href="https://davisvaughan.github.io/almanac/">the pkgdown site</a>. In particular, head over to the <a href="https://davisvaughan.github.io/almanac/articles/almanac.html">Introduction to almanac</a> vignette.</p>
 </div>
 
