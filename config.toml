@@ -6,7 +6,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 
 [params]
 
-    disqusShortname = "datainsights"
+    disqusShortname = "davisvaughanblog"
     google_analytics = "UA-99003915-1"
     
     twitter_name = "dvaughan32"
