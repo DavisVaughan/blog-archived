@@ -129,10 +129,11 @@ For those of you who don’t know, RDS is an easy way to create a database in th
       <pubDate>Mon, 01 Jan 1900 00:00:00 +0000</pubDate>
       
       <guid>https://blog.davisvaughan.com/about/</guid>
-      <description>Who am I? I’m Davis, a Software Engineer at RStudio working on modeling in the tidyverse. I enjoy all things R. I’m also a coffee enthusiast, as most R users seem to be.
+      <description>  Who am I? I’m Davis, a Software Engineer at RStudio working on creating user friendly R packages with the rest of the tidyverse team.
  What else? I’ve developed a few R packages:
- furrr probably rray  I also helped co-author a few R packages with Matt Dancho:
- tidyquant timetk tibbletime   Want to get in touch? I’m always up for a conversation about R or Finance.</description>
+ furrr slider clock almanac hardhat workflows probably  And I work on many more, including:
+ tidyr vctrs yardstick   Social media Follow me on Twitter at @dvaughan32.
+ </description>
     </item>
     
   </channel>
