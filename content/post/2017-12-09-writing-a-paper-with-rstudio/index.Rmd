@@ -250,7 +250,7 @@ Thanks to Dirk, the dream has come true.
 
 <center>
 ```{r, echo = FALSE}
-blogdown::shortcode("tweet", "939607571673075712")
+blogdown::shortcode("tweet", user = "eddelbuettel", id = "939607571673075712")
 ```
 </center>
 
