@@ -17,6 +17,11 @@ In the remainder of this post, I'll show how to set up VS Code to debug an R pac
 If you haven't yet read my post about using lldb (linked above and again [here](https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/)), then I'd encourage you to do that first, as it explains some of the basics and gotchas of using lldb with R.
 This post assumes a little working knowledge of lldb.
 
+Most of this post would not be possible without the work of [Kun Ren](https://renkun.me), who has a nice post on [VS Code Extensions for R](https://renkun.me/2022/03/06/my-recommendations-of-vs-code-extensions-for-r/) and an example repo on using [VS Code with cpp11](https://github.com/renkun-ken/vscode-cpp11-demo).
+While this post doesn't take the exact same approach as his, it was still invaluable for getting started.
+
+I have also had many discussions with and insights from [Jenny Bryan](https://jennybryan.org) while trying to get this to work smoothly.
+
 ### My specs
 
 It is worth noting my personal setup, as the finer details of this post will vary a bit per operating system:
