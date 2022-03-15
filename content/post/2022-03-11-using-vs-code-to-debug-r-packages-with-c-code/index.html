@@ -95,10 +95,7 @@ We will discuss how this appeared in a bit, but for now just click it.</p>
 <p>If all goes well, you should get something like this shown in the video below.
 Here I step through the function using the debugging menu that pops up in the top middle of the screen.
 You can print out variables along the way using the <code>var</code> command from lldb.</p>
-<video controls autoplay>
-<source src="./video/debug-fail.mov" type="video/mp4">
-</video>
-<p><br></br></p>
+<p>{{% youtube id="_u5k-Fk2bfU" autoplay="true" %}}</p>
 <p>You’ll notice that some things aren’t working exactly right, in particular we see:</p>
 <pre><code>vsexample.so was compiled with optimization - stepping may behave oddly; variables may not be available.</code></pre>
 <p>If you remember from my post on <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">using lldb with R</a>, we need to compile the package with optimization turned off to ensure that all of the debugging information is available.
@@ -111,10 +108,7 @@ Save this file and try to run <code>(lldb) Launch</code> again.
 This time it should work a little better.
 I obviously know exactly where the problem is here, so I’m going to narrow in on it fairly quickly.
 <span class="marginnote">Don’t forget to either remove these flags, or revert back to <code>-O2</code> after you are finished debugging!</span></p>
-<video controls autoplay>
-<source src="./video/debug-work.mov" type="video/mp4">
-</video>
-<p><br></br></p>
+<p>{{% youtube id="ihkLGPSkVMY" autoplay="true" %}}</p>
 <p>If you can’t tell from the video, I end up printing out the <code>doubles</code> vector at various points during the filling process.
 After the first iteration of the fill loop, we see that it filled in a <code>2</code> in the <em>second</em> spot of the vector rather than the first.
 After one more iteration of this, this was enough for me to figure out the problem.
@@ -248,10 +242,7 @@ You can append to your existing configuration and set something up that looks li
   ]
 }</code></pre>
 <p>Here is an example video of attaching in action:</p>
-<video controls autoplay>
-<source src="./video/attach.mov" type="video/mp4">
-</video>
-<p><br></br></p>
+<p>{{% youtube id="43QxsQRluBQ" autoplay="true" %}}</p>
 <p>One nice thing about attaching is that after exiting the debugger the R session is still alive, so you can run the same function again to jump back into the debugger.</p>
 </div>
 <div id="tips" class="section level3">
