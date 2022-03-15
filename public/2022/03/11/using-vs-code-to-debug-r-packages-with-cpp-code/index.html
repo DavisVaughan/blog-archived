@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]><html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]><html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--><html class="no-js" prefix="og: http://ogp.me/ns#" xmlns:og="http://ogp.me/ns#"><!--<![endif]-->
+
+    <head>
+                <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <meta name="author" content="">
+  
+	
+        <meta name="twitter:card" content="summary">
+        <meta name="twitter:site" content="@https://twitter.com/dvaughan32">
+        <meta name="twitter:creator" content="@https://twitter.com/dvaughan32">
+        <meta name="twitter:domain" content="https://blog.davisvaughan.com/">
+	
+        <meta property="og:site_name" content="Davis Vaughan&#39;s Blog">
+        <meta property="og:title" content="Davis Vaughan&#39;s Blog">
+        <meta property="og:url" content="https://blog.davisvaughan.com/2022/03/11/using-vs-code-to-debug-r-packages-with-cpp-code/">
+        <meta property="og:description" content="">
+    
+        <meta property="og:type" content="article" />
+        <meta property="og:article:author" content="" />
+        <meta property="og:article:published_time" content="2022-03-11T00:00:00Z" />
+    
+        <meta name="generator" content="Hugo 0.94.0" />
+        <title>Using VS Code to Debug R Packages with C&#43;&#43; Code &middot; Davis Vaughan&#39;s Blog</title>
+        <link rel="canonical" href="https://blog.davisvaughan.com/" />
+        
+        <link rel="stylesheet" type="text/css" href="https://blog.davisvaughan.com/css/main.css"/>
+        <link href="//fonts.googleapis.com/css?family=Source+Sans+Pro:300|Montserrat:700|Roboto|Fira+Mono" rel="stylesheet" type="text/css">
+        <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+        <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
+        <link rel="stylesheet" href="/css/marginnote.css">
+        <link href="//cdn.bootcss.com/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="/css/hljs-tweaks.css">
+    </head>
+
+<body>
+<!--[if lt IE 7]><p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chrome/‎">install Google Chrome</a> to experience this site.</p><![endif]-->
+
+    <header id="site-header">
+        <div class="container">
+            <a href="https://blog.davisvaughan.com/" alt="Davis Vaughan&#39;s Blog"><h3>Davis Vaughan&#39;s Blog</h3></a>
+            <p class="blog-description">
+              <a href = "/">Home</a>
+              |
+              <a href = "/about/">About</a>
+            </p>
+        </div>
+    </header>
+<main class="content" role="main">
+	<div class="container">
+		<article class="post">
+	<header class="post-header">
+        <h3 class="p-post-title">Using VS Code to Debug R Packages with C&#43;&#43; Code</h3>
+    </header>
+
+    <section class="post-content">
+        
+<script src="https://blog.davisvaughan.com/2022/03/11/using-vs-code-to-debug-r-packages-with-cpp-code/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>This post is intended to serve as a reference for R package developers that use C or C++ code inside their package.
+RStudio is a fantastic IDE for R code, and has an amazing debugger built in, but sometimes you need to use a different tool for debugging C++ code.
+In a previous post, I’ve talked about how to use <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">lldb to debug an R package with C++ code</a>.
+While this works, it lacks the elegance and ease of use that we typically expect from a full fledged debugger, i.e. setting breakpoints by clicking on the line we care about, clicking to step over or into functions, etc.
+Unsurprisingly, the C++ community has built a number of tools that <em>do</em> have support for this, one of them being VS Code with C++ extensions, but the R community hasn’t latched on to any of these yet.
+In the remainder of this post, I’ll show how to set up VS Code to debug an R package containing C++ code, which should hopefully make this tool more accessible to the R community.</p>
+<p>If you haven’t yet read my post about using lldb (linked above and again <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">here</a>), then I’d encourage you to do that first, as it explains some of the basics and gotchas of using lldb with R.
+This post assumes a little working knowledge of lldb.</p>
+<p>Most of this post would not be possible without the work of <a href="https://renkun.me">Kun Ren</a>, who has a nice post on <a href="https://renkun.me/2022/03/06/my-recommendations-of-vs-code-extensions-for-r/">VS Code Extensions for R</a> and an example repo on using <a href="https://github.com/renkun-ken/vscode-cpp11-demo">VS Code with cpp11</a>.
+While this post doesn’t take the exact same approach as his, it was still invaluable for getting started.</p>
+<p>I have also had many discussions with and insights from <a href="https://jennybryan.org">Jenny Bryan</a> while trying to get this to work smoothly.</p>
+<div id="my-specs" class="section level3">
+<h3>My specs</h3>
+<p>It is worth noting my personal setup, as the finer details of this post will vary a bit per operating system:</p>
+<ul>
+<li>macOS Monterey 12.2.1</li>
+<li>R 4.1.1</li>
+</ul>
+<p>If you aren’t using a Mac, the absolute paths set in the configuration files below will need to be updated!</p>
+</div>
+<div id="downloading-visual-studio-code" class="section level3">
+<h3>Downloading Visual Studio Code</h3>
+<p>Visual Studio Code (or VS Code for short), is a powerful IDE that supports many languages, including both R and C++.
+The first step on our journey is to download it from <a href="https://code.visualstudio.com">this link</a>.
+Once you’ve downloaded it, go ahead and open it.</p>
+</div>
+<div id="vs-code-extensions" class="section level3">
+<h3>VS Code Extensions</h3>
+<p>VS Code is a generic IDE that has support for many languages through <em>extensions</em>.
+We will need a few extensions to get started:</p>
+<ul>
+<li><a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-extension-pack">C/C++ Extension Pack</a>: Contains the C/C++ syntax highlighting and debugging tools, along with a number of other nice tools.</li>
+<li><a href="https://marketplace.visualstudio.com/items?itemName=Ikuyadeu.r">R Extension</a>: The R extension for VS Code, which includes syntax highlighting, autocomplete, package management, and working with R Terminals inside VS Code. While not strictly necessary for us, this is pretty helpful.</li>
+<li><a href="https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb">CodeLLDB</a>: An lldb debugger packaged specifically for use with VS Code.</li>
+</ul>
+<p>The easiest way to install extensions is to use the extension menu built into VS Code.
+It is on the left side of the screen, and looks like 4 blocks with one of the blocks pulled out.
+I’ve highlighted it in this image below, along with the search bar to use to search for these extensions.</p>
+<p><img src="img/extension.png" /></p>
+<p>Once you’ve downloaded the extensions, restart VS Code to ensure that they are fully activated.
+They should enable themselves by default.</p>
+</div>
+<div id="vs-code-exploration" class="section level3">
+<h3>VS Code exploration</h3>
+<p>It is worth taking a moment to explore VS Code for a moment.
+Since you installed the R extension, you have access to an interactive R terminal.
+You can access it by first opening the terminal window with <code>Terminal -&gt; New Terminal</code>.</p>
+<p><img src="img/terminal-location.png" /></p>
+<p>And then selecting an R Terminal using the drop down menu in the right corner of the terminal window.</p>
+<p><img src="img/terminal-open.png" /></p>
+<p>This opens an R terminal where you can send commands:</p>
+<p><img src="img/terminal.png" /></p>
+</div>
+<div id="easy-setup" class="section level3">
+<h3>Easy setup</h3>
+<p>The easiest way to actually get familiar with VS Code is to get dropped into a project that is already set up for you, so let’s do that.
+Open RStudio and run the following, substituting in <code>destdir</code>:</p>
+<pre class="r"><code>usethis::create_from_github(&quot;DavisVaughan/vsexample&quot;, destdir = &quot;{your/folder}&quot;)</code></pre>
+<p>This example R package has a function named <code>buggy_init()</code> that we are going to be trying out.
+You give it a single integer size, and it should create a double vector of that size filled with <code>2</code>s.
+If you try it out in RStudio, you should get something like this:</p>
+<pre class="r"><code>buggy_init(5L)
+#&gt; [1] 6.939327e-310  2.000000e+00  2.000000e+00  2.000000e+00  2.000000e+00</code></pre>
+<p>That obviously doesn’t look right.
+We’ll use VS Code to figure out what is going on.</p>
+<p>Go back to VS Code and click <code>File -&gt; Open...</code> at the top.
+Navigate to the <code>vsexample</code> folder and hit <code>Open</code>.
+It should look like this:</p>
+<p><img src="img/vsexample.png" /></p>
+<p>On the left hand side you will see the files in the package directory.
+This is the Explorer window.
+If you open the <code>src/</code> directory and then open <code>code.cpp</code>, you can see the C++ file that contains <code>buggy_init()</code>.</p>
+<p>If you open the R Terminal, you can <code>load_all()</code> and run <code>buggy_init()</code> right there to see that there is a problem.
+VS Code’s R extension will automatically set the working directory to the project directory, which is pretty nice.</p>
+<p><img src="img/buggy-init.png" /></p>
+<p>So let’s debug this thing.
+We don’t really know what is going on, so we are going to start by setting a breakpoint on the first line of <code>buggy_init()</code>, and then we are going to walk through it line by line.
+This is just like setting a breakpoint on an R file in RStudio, click to the left of the line number you want to set a breakpoint on, and a red circle should show up.</p>
+<p>Then switch to the Run and Debug tab on the left hand side.
+At the top of the screen, you should see a green play arrow titled <code>(lldb) Launch</code>.
+We will discuss how this appeared in a bit, but for now just click it.</p>
+<p><img src="img/debug-and-run.png" /></p>
+<p>If all goes well, you should get something like this shown in the video below.
+Here I step through the function using the debugging menu that pops up in the top middle of the screen.
+You can print out variables along the way using the <code>var</code> command from lldb.</p>
+<p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+  <iframe src="https://www.youtube.com/embed/_u5k-Fk2bfU?autoplay=1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" allowfullscreen title="YouTube Video"></iframe>
+</div>
+</p>
+<p>You’ll notice that some things aren’t working exactly right, in particular we see:</p>
+<pre><code>vsexample.so was compiled with optimization - stepping may behave oddly; variables may not be available.</code></pre>
+<p>If you remember from my post on <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">using lldb with R</a>, we need to compile the package with optimization turned off to ensure that all of the debugging information is available.
+Luckily, this is easy.
+Run the following in the R Terminal of VS Code:</p>
+<pre class="r"><code>usethis::edit_r_makevars()</code></pre>
+<p>This should open your user level Makevars file in VS Code.
+At a minimum, for this C++11 based project we need to add <code>CXX11FLAGS=-O0 -g</code> to this file to instruct our compiler to compile without optimization (that’s <code>-O0</code>) and include all debugging information (the <code>-g</code>).
+Save this file and try to run <code>(lldb) Launch</code> again.
+This time it should work a little better.
+I obviously know exactly where the problem is here, so I’m going to narrow in on it fairly quickly.
+<span class="marginnote">Don’t forget to either remove these flags, or revert back to <code>-O2</code> after you are finished debugging!</span></p>
+<p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+  <iframe src="https://www.youtube.com/embed/ihkLGPSkVMY?autoplay=1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" allowfullscreen title="YouTube Video"></iframe>
+</div>
+</p>
+<p>If you can’t tell from the video, I end up printing out the <code>doubles</code> vector at various points during the filling process.
+After the first iteration of the fill loop, we see that it filled in a <code>2</code> in the <em>second</em> spot of the vector rather than the first.
+After one more iteration of this, this was enough for me to figure out the problem.
+Our iteration bounds are off by 1!
+We were using 1-based indices (like R), but C++ uses 0-based indices.
+So:</p>
+<pre><code>for (R_xlen_t i = 1; i &lt;= size; ++i) {</code></pre>
+<p>should be:</p>
+<pre><code>for (R_xlen_t i = 0; i &lt; size; ++i) {</code></pre>
+<p>If you make that change and recompile the package, you should get:</p>
+<pre class="r"><code>buggy_init(5L)
+#&gt; [1] 2 2 2 2 2</code></pre>
+<p>Note that cpp11 vectors have <code>.begin()</code> and <code>.end()</code> member functions, so we could have also included the <code>&lt;algorithm&gt;</code> header and used <code>std::fill()</code> for this, which probably would have avoided this bug from the start!</p>
+<pre class="cpp"><code>#include &lt;cpp11.hpp&gt;
+#include &lt;algorithm&gt;
+
+[[cpp11::register]]
+cpp11::writable::doubles buggy_init(cpp11::integers size) {
+  R_xlen_t c_size = static_cast&lt;R_xlen_t&gt;(size[0]);
+  cpp11::writable::doubles out(c_size);
+  std::fill(out.begin(), out.end(), 2);
+  return out;
+}</code></pre>
+<p>Pretty cool, right?</p>
+</div>
+<div id="launch-configuration" class="section level3">
+<h3>Launch configuration</h3>
+<p>So how does all this work?
+How did that <code>(lldb) Launch</code> button appear?
+How did it know to run <code>buggy_init()</code>?
+Good questions!</p>
+<p>In the Explorer pane you should see a <code>.vscode</code> folder, and inside that folder you should see a <code>launch.json</code> file.
+Open that up.</p>
+<p>VS Code has what are known as <em>launch configurations</em>.
+These perform some kind of language specific debugging action and pop up as an option in that Run and Debug menu.
+Here is ours:</p>
+<p><img src="img/launch-json.png" /></p>
+<p>Here are my best guess descriptions of each of these fields:</p>
+<ul>
+<li><code>name</code>: The name of the launch target. This shows up beside the green play button in Run and Debug.</li>
+<li><code>type</code>: The type of launch target to use. To use our CodeLLDB extension, we have to set this to <code>lldb</code>.</li>
+<li><code>request</code>: Whether this is a <code>launch</code> or <code>attach</code> type of configuration. We want VS Code to <em>launch</em> a new R session for us, but we can also have it <em>attach</em> to an existing one using its process ID (PID). We will keep this as launch for now, but at the end of this post I’ll also show an attach example.</li>
+<li><code>program</code>: The path to the program to debug. This is OS specific, but most Mac users should have R in this location.</li>
+<li><code>args</code>: Arguments to supply to the <code>program</code>. Here we supply <code>--vanilla</code> to use a vanilla R session which doesn’t load in any history or saved data files, and tell it to execute the command <code>source('tools/debug.R')</code> when it starts up the R session.</li>
+<li><code>env</code>: A list of <code>"name" : "value"</code> pairs for environment variables to set before starting up the <code>program</code>. The only one we seem to <em>need</em> is <code>R_HOME</code>, which you can get by calling <code>R.home()</code> in a typical R session. This should be right for most Mac users already.</li>
+<li><code>terminal</code>: Whether to use the Debug Console (<code>"console"</code>), the Integrated Terminal (<code>"integrated"</code>) or an External Terminal (i.e. the Terminal application) (<code>"external"</code>) for standard output from the <code>program</code>. This is user preference, but I find that using the <code>"console"</code> is the most useful with a launched R session because it means that the result of the lldb command <code>expr Rf_PrintValue(x)</code> shows up right in the Debug Console rather than in a separate terminal.</li>
+<li><code>stopOnEntry</code>: Should the debugger immediately stop upon activation? This doesn’t stop at your first breakpoint, rather, this stops right when R opens up. It typically will show you some assembly code when it stops, which isn’t very useful.</li>
+</ul>
+</div>
+<div id="debug.r" class="section level3">
+<h3>debug.R</h3>
+<p>So the <code>launch.json</code> file controls what happens when the Run and Debug button is pressed, but what is in the <code>tools/debug.R</code> file that is being executed?
+Navigate to that now in the Explorer pane.
+It should have this in it:</p>
+<pre class="r"><code>devtools::clean_dll()
+devtools::load_all()
+
+buggy_init(5L)</code></pre>
+<p>The idea is that we set a breakpoint on a particular line, then Launch a new R session that compiles the code, loads it (at which point the breakpoints are locked in), and then tries to call some code that we know will pass through the C++ line where we put the breakpoint.
+Once the breakpoint is hit, we are free to step through the code and look around.</p>
+<p>For your own projects, you’ll change <code>buggy_init(5L)</code> to whatever code triggers your breakpoint or crashes your session.</p>
+</div>
+<div id="c-properties" class="section level3">
+<h3>C++ Properties</h3>
+<p>The other file worth looking at is <code>c_cpp_properties.json</code> in the <code>.vscode</code> folder.
+This controls the C/C++ Extension that you installed.
+In particular, it handles IntelliSense, the autocompletion and syntax error generator for C++.</p>
+<p>Open that up now:</p>
+<p><img src="img/properties.png" /></p>
+<p>An easier way to edit lines in this file is <code>CMD+SHIFT+P</code> to bring up the VS Code command palette, and search for (with the leading <code>&gt;</code>!):</p>
+<pre><code>&gt;C/C++: Edit Configurations (UI)</code></pre>
+<p><img src="img/properties-menu.png" /></p>
+<p>This brings up a user friendly way to edit this JSON file, with more descriptions about each field.
+Here is my short summary:</p>
+<ul>
+<li><code>name</code>: Typically <code>Mac</code>, <code>Linux</code> or <code>Win32</code>, this selects which configuration file to use. These 3 names are special in that the corresponding configuration will be auto-selected based on the OS you are on.</li>
+<li><code>includePath</code>: Folders to include for the autocompletion and syntax error generation engine. This won’t affect the actual code compilation process, as that is handled by R itself and your <code>DESCRIPTION</code> / <code>src/Makevars</code> files, but getting this right will help your experience as you are tweaking your C++ files in VS Code. Two important things to note here are the inclusion of R’s headers, which live in <code>"/Library/Frameworks/R.framework/Resources/include"</code>, and the headers specific to cpp11, which live in <code>"/Library/Frameworks/R.framework/Versions/Current/Resources/library/cpp11/include"</code>. You should always include the R headers, but if your project uses Rcpp rather than cpp11, you could alter that line to be <code>.../Rcpp/include</code> instead. Basically, anything in your <code>LinkingTo:</code> field of your DESCRIPTION file should be included here.</li>
+<li><code>macFrameworkPath</code>: The path to the Mac framework folder which contains the system header files. This one doesn’t seem to be strictly necessary for this package, but may be useful for others.</li>
+<li><code>compilerPath</code>: The compiler that would in theory be used to build the project. It also enables more accurate IntelliSense because from this the C++ standard library paths are inferred. This allows us to use things like <code>#include &lt;algorithm&gt;</code> and then autocomplete on everything in that header. It is probably fine to leave this as clang, but you can change it to gcc as well. The easiest way to do this is in the configuration UI mentioned earlier, under the Compiler path section.</li>
+<li><code>cStandard</code>: Relevant if you are debugging C rather than C++ code (which does work!). R packages are typically compiled against C99, so this is probably a good default. Again, it controls how IntelliSense works.</li>
+<li><code>cppStandard</code>: The C++ standard version to use for IntelliSense. cpp11 projects use C++11 by default, so that is what we have chosen here. It is typically a good default unless you know you need a different version.</li>
+<li><code>version</code>: A version number managed by the configuration file. Don’t change this.</li>
+</ul>
+<p>Let’s see what happens if we remove the cpp11 <code>includePath</code>, and then open up <code>code.cpp</code>:</p>
+<p><img src="img/include-path.png" /></p>
+<p>This just means that you are missing something in <code>includePath</code> that you are trying to use in your C++ source files.
+Note that it <em>won’t</em> prevent you from running Run and Debug, and the script in <code>debug.R</code> will still compile fine.
+This just means that for the purposes of autocompletion and syntax errors, VS Code can’t find that <code>cpp11.hpp</code> file.</p>
+</div>
+<div id="debugging-a-real-rlang-issue" class="section level3">
+<h3>Debugging a real rlang issue</h3>
+<p>I actually used VS Code to recently debug an <a href="https://github.com/r-lib/rlang/issues/1376">rlang issue</a>.
+We’ve already fixed the problem, but I’m going to walk through the issue in the following video to show how I tracked it down.
+It doesn’t use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occuring from.</p>
+<p>TODO: Insert video here</p>
+</div>
+<div id="attach-configuration-example" class="section level3">
+<h3>Attach configuration example</h3>
+<p>You can also <em>attach</em> the VS Code debugger to an existing R session.
+Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session <em>before</em> running <code>load_all()</code>.
+You’ll also need get the PID for the R session.
+The easiest way to do this is <code>ps::ps_pid()</code>.</p>
+<p>You’ll also need an <em>attach</em> configuration set in <code>launch.json</code>.
+You can append to your existing configuration and set something up that looks like this:</p>
+<pre><code>{
+  &quot;version&quot;: &quot;0.2.0&quot;,
+  &quot;configurations&quot;: [
+    {
+      &quot;name&quot;: &quot;(lldb) Launch&quot;,
+      &quot;type&quot;: &quot;lldb&quot;,
+      &quot;request&quot;: &quot;launch&quot;,
+      &quot;program&quot;: &quot;/Library/Frameworks/R.framework/Resources/bin/exec/R&quot;,
+      &quot;args&quot;: [
+        &quot;--vanilla&quot;,
+        &quot;-e&quot;,
+        &quot;source(&#39;tools/debug.R&#39;)&quot;
+      ],
+      &quot;env&quot;: {
+        &quot;R_HOME&quot; : &quot;/Library/Frameworks/R.framework/Resources&quot;
+      },
+      &quot;terminal&quot;: &quot;console&quot;,
+      &quot;stopOnEntry&quot;: false
+    },
+    {
+      &quot;name&quot;: &quot;(lldb) Attach&quot;,
+      &quot;type&quot;: &quot;lldb&quot;,
+      &quot;request&quot;: &quot;attach&quot;,
+      &quot;pid&quot;: &quot;${command:pickMyProcess}&quot;,
+      &quot;stopOnEntry&quot;: false
+    }
+  ]
+}</code></pre>
+<p>Here is an example video of attaching in action:</p>
+<p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+  <iframe src="https://www.youtube.com/embed/43QxsQRluBQ?autoplay=1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;" allowfullscreen title="YouTube Video"></iframe>
+</div>
+</p>
+<p>One nice thing about attaching is that after exiting the debugger the R session is still alive, so you can run the same function again to jump back into the debugger.</p>
+</div>
+<div id="tips" class="section level3">
+<h3>Tips</h3>
+<p>Below are a few other tips and gotchas we have learned while working with VS Code.</p>
+<div id="c-template-classes" class="section level4">
+<h4>C++ Template Classes</h4>
+<p>C++ template classes are a bit tricky to debug.
+The cpp11 <code>doubles</code> vector is an example of this, it is a template class on <code>cpp11::r_vector&lt;double&gt;</code>.
+This class has a member function called <code>.at()</code> which will return the element <em>at</em> a specific location.</p>
+<p>Now, if you try and call <code>expr out.at(0)</code> while debugging our <code>code.cpp</code> example, which doesn’t use <code>.at()</code> at all, you will probably run into issues like this:</p>
+<pre><code>expr out.at(0)
+error: expression failed to parse:
+error: Couldn&#39;t lookup symbols:
+  __ZNK5cpp118writable8r_vectorIdE2atEi</code></pre>
+<p>Because we didn’t use <code>.at()</code> anywhere in the code, the compiler <em>never generated code for it</em>.
+This isn’t being “optimized out” at all, it was just never generated at all to begin with.
+We haven’t found a great solution to this issue yet, but generally you can always access the internal SEXP of a cpp11 vector with <code>x.data_</code>, and then you can call any C level R function on that, like <code>REAL_ELT(x.data_, 0)</code>, in place of the <code>.at()</code> call.</p>
+</div>
+<div id="settings" class="section level4">
+<h4>Settings</h4>
+<p>If you hit <code>Command + ,</code> (i.e. command and comma), then you will be taken to a general settings menu for VS Code.
+You should see a tab for User (global settings) and Workspace (settings for this workspace in particular).</p>
+<p>There are a number of Commonly Used settings, one in particular is Tab Size, which defaults to 4, but is 2 in RStudio.
+You may want to update this.</p>
+</div>
+</div>
+<div id="setup-function" class="section level3">
+<h3>Setup function</h3>
+<p>Since you have to set up each R package with:</p>
+<ul>
+<li>A <code>.vcode</code> folder with <code>launch.json</code> and and <code>c_cpp_properties.json</code></li>
+<li>A <code>tools</code> folder with <code>debug.R</code></li>
+<li>An <code>.Rbuildignore</code> that ignores these</li>
+</ul>
+<p>It seemed useful to wrap this up in a function.
+You can call this function from RStudio after opening up the <code>Rproj</code> file of the R package that you want to debug.</p>
+<pre class="r"><code>use_vscode_debug &lt;- function() {
+  launch &lt;- c(
+    &#39;{&#39;,
+    &#39;  &quot;version&quot;: &quot;0.2.0&quot;,&#39;,
+    &#39;  &quot;configurations&quot;: [&#39;,
+    &#39;    {&#39;,
+    &#39;      &quot;name&quot;: &quot;(lldb) Launch&quot;,&#39;,
+    &#39;      &quot;type&quot;: &quot;lldb&quot;,&#39;,
+    &#39;      &quot;request&quot;: &quot;launch&quot;,&#39;,
+    &#39;      &quot;program&quot;: &quot;/Library/Frameworks/R.framework/Resources/bin/exec/R&quot;,&#39;,
+    &#39;      &quot;args&quot;: [&#39;,
+    &#39;        &quot;--vanilla&quot;,&#39;,
+    &#39;        &quot;-e&quot;,&#39;,
+    &#39;        &quot;source(\&#39;tools/debug.R\&#39;)&quot;&#39;,
+    &#39;      ],&#39;,
+    &#39;      &quot;env&quot;: {&#39;,
+    &#39;        &quot;R_HOME&quot; : &quot;/Library/Frameworks/R.framework/Resources&quot;&#39;,
+    &#39;      },&#39;,
+    &#39;      &quot;terminal&quot;: &quot;console&quot;,&#39;,
+    &#39;      &quot;stopOnEntry&quot;: false&#39;,
+    &#39;    },&#39;,
+    &#39;    {&#39;,
+    &#39;      &quot;name&quot;: &quot;(lldb) Attach&quot;,&#39;,
+    &#39;      &quot;type&quot;: &quot;lldb&quot;,&#39;,
+    &#39;      &quot;request&quot;: &quot;attach&quot;,&#39;,
+    &#39;      &quot;pid&quot;: &quot;${command:pickMyProcess}&quot;,&#39;,
+    &#39;      &quot;stopOnEntry&quot;: false&#39;,
+    &#39;    }&#39;,
+    &#39;  ]&#39;,
+    &#39;}&#39;
+  )
+  
+  properties &lt;- c(
+    &#39;{&#39;,
+    &#39;  &quot;configurations&quot;: [&#39;,
+    &#39;    {&#39;,
+    &#39;      &quot;name&quot;: &quot;Mac&quot;,&#39;,
+    &#39;      &quot;includePath&quot;: [&#39;,
+    &#39;        &quot;${workspaceFolder}/**&quot;,&#39;,
+    &#39;        &quot;/Library/Frameworks/R.framework/Resources/include&quot;&#39;,
+    &#39;        &quot;/Library/Frameworks/R.framework/Versions/Current/Resources/library/cpp11/include&quot;&#39;,
+    &#39;      ],&#39;,
+    &#39;      &quot;defines&quot;: [],&#39;,
+    &#39;      &quot;macFrameworkPath&quot;: [&#39;,
+    &#39;        &quot;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks&quot;&#39;,
+    &#39;      ],&#39;,
+    &#39;      &quot;compilerPath&quot;: &quot;/usr/bin/clang&quot;,&#39;,
+    &#39;      &quot;cStandard&quot;: &quot;c99&quot;,&#39;,
+    &#39;      &quot;cppStandard&quot;: &quot;c++11&quot;,&#39;,
+    &#39;    }&#39;,
+    &#39;  ],&#39;,
+    &#39;  &quot;version&quot;: 4&#39;,
+    &#39;}&#39;
+  )
+  
+  debug &lt;- c(
+    &#39;devtools::clean_dll()&#39;,
+    &#39;devtools::load_all()&#39;,
+    &#39;&#39;,
+    &#39;1 + 1&#39;
+  )
+  
+  usethis::use_directory(&quot;.vscode&quot;, ignore = TRUE)
+  usethis::write_over(&quot;.vscode/launch.json&quot;, lines = launch)
+  usethis::write_over(&quot;.vscode/c_cpp_properties.json&quot;, lines = properties)
+  
+  usethis::use_directory(&quot;tools&quot;, ignore = TRUE)
+  usethis::write_over(&quot;tools/debug.R&quot;, lines = debug)
+}</code></pre>
+</div>
+<div id="references" class="section level3">
+<h3>References</h3>
+<ul>
+<li><a href="https://renkun.me/2022/03/06/my-recommendations-of-vs-code-extensions-for-r/">My recommendations of VS Code extensions for R</a></li>
+<li><a href="https://github.com/renkun-ken/vscode-cpp11-demo">VS Code cpp11 Demo</a>. This doesn’t use CodeLLDB, but instead uses the built in lldb that comes with Mac. I found that the CodeLLDB experience was much smoother.</li>
+<li><a href="https://github.com/vadimcn/vscode-lldb/blob/master/MANUAL.md">CodeLLDB Manual</a>, with documentation for all of the configuration arguments.</li>
+</ul>
+</div>
+
+    </section>
+
+    <hr>
+
+    <footer class="post-footer">
+        <section class="f-1">
+            <section class="share">
+                <span>Share:
+                <a class="icon-twitter" href="http://twitter.com/share?text=Using%20VS%20Code%20to%20Debug%20R%20Packages%20with%20C%2b%2b%20Code&url=https%3a%2f%2fblog.davisvaughan.com%2f2022%2f03%2f11%2fusing-vs-code-to-debug-r-packages-with-cpp-code%2f"
+                    onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                    <i class="fa fa-twitter"></i>
+                </a>
+                <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=https%3a%2f%2fblog.davisvaughan.com%2f2022%2f03%2f11%2fusing-vs-code-to-debug-r-packages-with-cpp-code%2f"
+                    onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                    <i class="fa fa-facebook"></i>
+                </a>
+                <a class="icon-google-plus" href="https://plus.google.com/share?url=https%3a%2f%2fblog.davisvaughan.com%2f2022%2f03%2f11%2fusing-vs-code-to-debug-r-packages-with-cpp-code%2f"
+                   onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                    <i class="fa fa-google-plus"></i>
+                </a>
+                </span>
+            </section>
+
+            
+        </section>
+                
+        <section id="comments">
+            <div id="disqus_thread" class="post-comments"></div>
+            <script type="text/javascript">
+              if (window.location.hostname != "localhost") {
+                var disqus_shortname = 'davisvaughanblog';
+                (function() {
+                  var dsq = document.createElement('script');
+                  dsq.type = 'text/javascript';
+                  dsq.async = true;
+                  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+                })();
+              }
+            </script>
+            <noscript>
+              Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+            </noscript>
+        </section>
+                
+    </footer>
+</article>
+	</div>
+</main>
+    <footer id="site-footer">
+        <div class="container">
+          
+          
+            <a href="https://www.twitter.com/dvaughan32" title="Twitter" target="_blank"><span class="tooltip"><i class="fa fa-twitter"></i></span></a>
+          
+          
+            <a href="https://www.github.com/DavisVaughan" title="GitHub" target="_blank"><span class="tooltip"><i class="fa fa-github"></i></span></a>
+          
+          <a href="https://blog.davisvaughan.com/index.xml" title="Get the RSS feed"><span class="tooltip"><i class="fa fa-rss"></i></span></a>
+          <section>&copy; <a href="https://blog.davisvaughan.com/"></a> 2017 | All rights reserved</section>
+          <section>Theme by <a href="http://www.jrdnbwmn.com">Jordan Bowman</a>. Generated with <a href="http://gohugo.io/">Hugo</a>.</section>
+        </div>
+    </footer>
+
+    <script type="text/javascript" src="https://blog.davisvaughan.com/js/fittext.js"></script>
+    <script type="text/javascript">
+      $(".heading").fitText();
+    </script>
+    
+    <script src="https://blog.davisvaughan.com/js/math-code.js"></script>
+    <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+      }
+    });
+    </script>
+    <script type="text/javascript"
+      src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+
+    <script src="//cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+    <script src="//cdn.bootcss.com/highlight.js/9.12.0/languages/r.min.js"></script>
+    <script src="//cdn.bootcss.com/highlight.js/9.12.0/languages/cpp.min.js"></script>
+    
+    <script>
+    hljs.initHighlightingOnLoad();
+    </script>
+
+    <script>
+        var _gaq=[['_setAccount','UA-99003915-1'],['_trackPageview']];
+        (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+        g.src='//www.google-analytics.com/ga.js';
+        s.parentNode.insertBefore(g,s)}(document,'script'));
+    </script>
+
+
+</body>
+</html>
