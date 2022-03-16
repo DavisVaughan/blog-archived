@@ -10,7 +10,7 @@ editor_options:
 This post is intended to serve as a reference for R package developers that use C or C++ code inside their package.
 RStudio is a fantastic IDE for R code, and has an amazing debugger built in, but sometimes you need to use a different tool for debugging C++ code.
 In a previous post, I've talked about how to use [lldb to debug an R package with C++ code](https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/).
-While this works, it lacks the elegance and ease of use that we typically expect from a full fledged debugger, i.e. setting breakpoints by clicking on the line we care about, clicking to step over or into functions, etc.
+While this works, it lacks the elegance and ease of use that we typically expect from a full fledged debugger, i.e. setting breakpoints by clicking on the line we care about, clicking to step over or into functions, easily watching local variables change, etc.
 Unsurprisingly, the C++ community has built a number of tools that *do* have support for this, one of them being VS Code with C++ extensions, but the R community hasn't latched on to any of these yet.
 In the remainder of this post, I'll show how to set up VS Code to debug an R package containing C++ code, which should hopefully make this tool more accessible to the R community.
 
@@ -70,6 +70,11 @@ And then selecting an R Terminal using the drop down menu in the right corner of
 This opens an R terminal where you can send commands:
 
 ![](./img/terminal.png)
+
+Another easy way to access this R terminal is to click `R: (not attached)` at the bottom right hand corner of your screen.
+This bypasses the need to create a new terminal window.
+
+![](img/terminal-not-attached.png)
 
 ### Easy setup
 
@@ -138,11 +143,16 @@ usethis::edit_r_makevars()
 ```
 
 This should open your user level Makevars file in VS Code.
-At a minimum, for this C++11 based project we need to add `CXX11FLAGS=-O0 -g` to this file to instruct our compiler to compile without optimization (that's `-O0`) and include all debugging information (the `-g`).
+At a minimum, this should look like:
+
+    CXX11FLAGS=-O0 -g
+
+This is a C++11 based project, so we need to use CXX11FLAGS to set the relevant flags.
+`-O0` is used to instruct our compiler to compile without optimization and `-g` is used to ensure that all debugging information is included.
 Save this file and try to run `(lldb) Launch` again.
 This time it should work a little better.
 I obviously know exactly where the problem is here, so I'm going to narrow in on it fairly quickly.
-[Don't forget to either remove these flags, or revert back to `-O2` after you are finished debugging!]{.marginnote}
+[Don't forget to remove the `-O0` flag, or revert it back to `-O2` after you are finished debugging! Forgetting to revert this flag can sometimes result in performance degradation for packages that you compile from source, because you are telling the compiler not to optimize the code.]{.marginnote}
 
 ```{r, echo=FALSE}
 blogdown::shortcode("youtube", id = "ihkLGPSkVMY", autoplay = "true")
@@ -184,6 +194,15 @@ cpp11::writable::doubles buggy_init(cpp11::integers size) {
 ```
 
 Pretty cool, right?
+
+### Local variables
+
+One other neat feature of VS Code's debugger is the variables window in the top left corner.
+It changes dynamically as you step through the code, and is often an easier way to inspect an object quickly when compared with using `var` or `expr` in the console, take a look:
+
+```{r, echo = FALSE}
+blogdown::shortcode("youtube", id = "6zY0qrcKTL0", autoplay = "true")
+```
 
 ### Launch configuration
 
@@ -264,6 +283,18 @@ Let's see what happens if we remove the cpp11 `includePath`, and then open up `c
 This just means that you are missing something in `includePath` that you are trying to use in your C++ source files.
 Note that it *won't* prevent you from running Run and Debug, and the script in `debug.R` will still compile fine.
 This just means that for the purposes of autocompletion and syntax errors, VS Code can't find that `cpp11.hpp` file.
+
+### .Rbuildignore
+
+It is worth quickly noting that the `.vscode` and `tools` directories should generally be committed to GitHub, but shouldn't be included in the R package when it is sent to CRAN.
+You can avoid this by adding them to your `.Rbuildignore`.
+To do this manually, you can use:
+
+```{r, eval=FALSE}
+usethis::use_build_ignore(c(".vscode", "tools"))
+```
+
+There is also a helper function in the Setup function section at the bottom of this post that will do this for you, among other useful things.
 
 ### Debugging a real rlang issue
 

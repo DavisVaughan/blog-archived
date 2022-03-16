@@ -13,7 +13,7 @@ editor_options:
 <p>This post is intended to serve as a reference for R package developers that use C or C++ code inside their package.
 RStudio is a fantastic IDE for R code, and has an amazing debugger built in, but sometimes you need to use a different tool for debugging C++ code.
 In a previous post, I’ve talked about how to use <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">lldb to debug an R package with C++ code</a>.
-While this works, it lacks the elegance and ease of use that we typically expect from a full fledged debugger, i.e. setting breakpoints by clicking on the line we care about, clicking to step over or into functions, etc.
+While this works, it lacks the elegance and ease of use that we typically expect from a full fledged debugger, i.e. setting breakpoints by clicking on the line we care about, clicking to step over or into functions, easily watching local variables change, etc.
 Unsurprisingly, the C++ community has built a number of tools that <em>do</em> have support for this, one of them being VS Code with C++ extensions, but the R community hasn’t latched on to any of these yet.
 In the remainder of this post, I’ll show how to set up VS Code to debug an R package containing C++ code, which should hopefully make this tool more accessible to the R community.</p>
 <p>If you haven’t yet read my post about using lldb (linked above and again <a href="https://blog.davisvaughan.com/2019/04/05/debug-r-package-with-cpp/">here</a>), then I’d encourage you to do that first, as it explains some of the basics and gotchas of using lldb with R.
@@ -62,6 +62,9 @@ You can access it by first opening the terminal window with <code>Terminal -&gt;
 <p><img src="img/terminal-open.png" /></p>
 <p>This opens an R terminal where you can send commands:</p>
 <p><img src="img/terminal.png" /></p>
+<p>Another easy way to access this R terminal is to click <code>R: (not attached)</code> at the bottom right hand corner of your screen.
+This bypasses the need to create a new terminal window.</p>
+<p><img src="img/terminal-not-attached.png" /></p>
 </div>
 <div id="easy-setup" class="section level3">
 <h3>Easy setup</h3>
@@ -103,11 +106,14 @@ Luckily, this is easy.
 Run the following in the R Terminal of VS Code:</p>
 <pre class="r"><code>usethis::edit_r_makevars()</code></pre>
 <p>This should open your user level Makevars file in VS Code.
-At a minimum, for this C++11 based project we need to add <code>CXX11FLAGS=-O0 -g</code> to this file to instruct our compiler to compile without optimization (that’s <code>-O0</code>) and include all debugging information (the <code>-g</code>).
+At a minimum, this should look like:</p>
+<pre><code>CXX11FLAGS=-O0 -g</code></pre>
+<p>This is a C++11 based project, so we need to use CXX11FLAGS to set the relevant flags.
+<code>-O0</code> is used to instruct our compiler to compile without optimization and <code>-g</code> is used to ensure that all debugging information is included.
 Save this file and try to run <code>(lldb) Launch</code> again.
 This time it should work a little better.
 I obviously know exactly where the problem is here, so I’m going to narrow in on it fairly quickly.
-<span class="marginnote">Don’t forget to either remove these flags, or revert back to <code>-O2</code> after you are finished debugging!</span></p>
+<span class="marginnote">Don’t forget to remove the <code>-O0</code> flag, or revert it back to <code>-O2</code> after you are finished debugging! Forgetting to revert this flag can sometimes result in performance degradation for packages that you compile from source, because you are telling the compiler not to optimize the code.</span></p>
 <p>{{% youtube id="ihkLGPSkVMY" autoplay="true" %}}</p>
 <p>If you can’t tell from the video, I end up printing out the <code>doubles</code> vector at various points during the filling process.
 After the first iteration of the fill loop, we see that it filled in a <code>2</code> in the <em>second</em> spot of the vector rather than the first.
@@ -133,6 +139,12 @@ cpp11::writable::doubles buggy_init(cpp11::integers size) {
   return out;
 }</code></pre>
 <p>Pretty cool, right?</p>
+</div>
+<div id="local-variables" class="section level3">
+<h3>Local variables</h3>
+<p>One other neat feature of VS Code’s debugger is the variables window in the top left corner.
+It changes dynamically as you step through the code, and is often an easier way to inspect an object quickly when compared with using <code>var</code> or <code>expr</code> in the console, take a look:</p>
+<p>{{% youtube id="6zY0qrcKTL0" autoplay="true" %}}</p>
 </div>
 <div id="launch-configuration" class="section level3">
 <h3>Launch configuration</h3>
@@ -197,6 +209,14 @@ Here is my short summary:</p>
 <p>This just means that you are missing something in <code>includePath</code> that you are trying to use in your C++ source files.
 Note that it <em>won’t</em> prevent you from running Run and Debug, and the script in <code>debug.R</code> will still compile fine.
 This just means that for the purposes of autocompletion and syntax errors, VS Code can’t find that <code>cpp11.hpp</code> file.</p>
+</div>
+<div id="rbuildignore" class="section level3">
+<h3>.Rbuildignore</h3>
+<p>It is worth quickly noting that the <code>.vscode</code> and <code>tools</code> directories should generally be committed to GitHub, but shouldn’t be included in the R package when it is sent to CRAN.
+You can avoid this by adding them to your <code>.Rbuildignore</code>.
+To do this manually, you can use:</p>
+<pre class="r"><code>usethis::use_build_ignore(c(&quot;.vscode&quot;, &quot;tools&quot;))</code></pre>
+<p>There is also a helper function in the Setup function section at the bottom of this post that will do this for you, among other useful things.</p>
 </div>
 <div id="debugging-a-real-rlang-issue" class="section level3">
 <h3>Debugging a real rlang issue</h3>
