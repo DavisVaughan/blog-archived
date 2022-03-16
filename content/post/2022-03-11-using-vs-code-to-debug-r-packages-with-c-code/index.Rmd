@@ -129,7 +129,7 @@ Here I step through the function using the debugging menu that pops up in the to
 You can print out variables along the way using the `var` command from lldb.
 
 ```{r, echo=FALSE}
-blogdown::shortcode("youtube", id = "_u5k-Fk2bfU", autoplay = "true")
+blogdown::shortcode("youtube", id = "_u5k-Fk2bfU")
 ```
 
 You'll notice that some things aren't working exactly right, in particular we see:
@@ -157,7 +157,7 @@ I obviously know exactly where the problem is here, so I'm going to narrow in on
 [Don't forget to remove the `-O0` flag, or revert it back to `-O2` after you are finished debugging! Forgetting to revert this flag can sometimes result in performance degradation for packages that you compile from source, because you are telling the compiler not to optimize the code.]{.marginnote}
 
 ```{r, echo=FALSE}
-blogdown::shortcode("youtube", id = "ihkLGPSkVMY", autoplay = "true")
+blogdown::shortcode("youtube", id = "ihkLGPSkVMY")
 ```
 
 If you can't tell from the video, I end up printing out the `doubles` vector at various points during the filling process.
@@ -201,7 +201,7 @@ One other neat feature of VS Code's debugger is the variables window in the top 
 It changes dynamically as you step through the code, and is often an easier way to inspect an object quickly when compared with using `var` or `expr` in the console, take a look:
 
 ```{r, echo = FALSE}
-blogdown::shortcode("youtube", id = "6zY0qrcKTL0", autoplay = "true")
+blogdown::shortcode("youtube", id = "6zY0qrcKTL0")
 ```
 
 ### Launch configuration
@@ -304,7 +304,7 @@ It doesn't use the typical lldb inspection tools, but instead uses the fact that
 Note that this video does have audio, unlike the others.
 
 ```{r, echo=FALSE}
-blogdown::shortcode("youtube", id = "HqwSyy4bCDU", autoplay = "true")
+blogdown::shortcode("youtube", id = "HqwSyy4bCDU")
 ```
 
 ### Attach configuration example
@@ -349,7 +349,7 @@ You can append to your existing configuration and set something up that looks li
 Here is an example video of attaching in action:
 
 ```{r, echo=FALSE}
-blogdown::shortcode("youtube", id = "43QxsQRluBQ", autoplay = "true")
+blogdown::shortcode("youtube", id = "43QxsQRluBQ")
 ```
 
 One nice thing about attaching is that after exiting the debugger the R session is still alive, so you can run the same function again to jump back into the debugger.
