@@ -79,10 +79,10 @@ This bypasses the need to create a new terminal window.
 ### Easy setup
 
 The easiest way to actually get familiar with VS Code is to get dropped into a project that is already set up for you, so let's do that.
-Open RStudio and run the following, substituting in `destdir`:
+Open RStudio and run the following, substituting your preferred parent folder as `destdir`:
 
 ```{r, eval=FALSE}
-usethis::create_from_github("DavisVaughan/vsexample", destdir = "{your/folder}")
+usethis::create_from_github("DavisVaughan/vsexample", destdir = "{your/parent/folder}")
 ```
 
 This example R package has a function named `buggy_init()` that we are going to be trying out.
@@ -107,7 +107,7 @@ On the left hand side you will see the files in the package directory.
 This is the Explorer window.
 If you open the `src/` directory and then open `code.cpp`, you can see the C++ file that contains `buggy_init()`.
 
-If you open the R Terminal, you can `load_all()` and run `buggy_init()` right there to see that there is a problem.
+If you open the R Terminal, you can `devtools::load_all()` and run `buggy_init(5L)` right there to see that there is a problem.
 VS Code's R extension will automatically set the working directory to the project directory, which is pretty nice.
 
 ![](./img/buggy-init.png)
@@ -225,8 +225,8 @@ Here are my best guess descriptions of each of these fields:
 -   `name`: The name of the launch target. This shows up beside the green play button in Run and Debug.
 -   `type`: The type of launch target to use. To use our CodeLLDB extension, we have to set this to `lldb`.
 -   `request`: Whether this is a `launch` or `attach` type of configuration. We want VS Code to *launch* a new R session for us, but we can also have it *attach* to an existing one using its process ID (PID). We will keep this as launch for now, but at the end of this post I'll also show an attach example.
--   `program`: The path to the program to debug. This is OS specific, but most Mac users should have R in this location.
--   `args`: Arguments to supply to the `program`. Here we supply `--vanilla` to use a vanilla R session which doesn't load in any history or saved data files, and tell it to execute the command `source('tools/debug.R')` when it starts up the R session.
+-   `program`: The path to the program to debug. This is OS specific, but most Mac users should have R in this location. In any case, the executable can generally be found below the folder revealed by `R.home()`.
+-   `args`: Arguments to supply to the `program`. Here we supply `--vanilla` to use a vanilla R session which doesn't load in any history or saved workspaces and also does not load the usual start-up files. We then tell it to execute the command `source('tools/debug.R')` when it starts up the R session.
 -   `env`: A list of `"name" : "value"` pairs for environment variables to set before starting up the `program`. The only one we seem to *need* is `R_HOME`, which you can get by calling `R.home()` in a typical R session. This should be right for most Mac users already.
 -   `terminal`: Whether to use the Debug Console (`"console"`), the Integrated Terminal (`"integrated"`) or an External Terminal (i.e. the Terminal application) (`"external"`) for standard output from the `program`. This is user preference, but I find that using the `"console"` is the most useful with a launched R session because it means that the result of the lldb command `expr Rf_PrintValue(x)` shows up right in the Debug Console rather than in a separate terminal.
 -   `stopOnEntry`: Should the debugger immediately stop upon activation? This doesn't stop at your first breakpoint, rather, this stops right when R opens up. It typically will show you some assembly code when it stops, which isn't very useful.
@@ -269,7 +269,7 @@ This brings up a user friendly way to edit this JSON file, with more description
 Here is my short summary:
 
 -   `name`: Typically `Mac`, `Linux` or `Win32`, this selects which configuration file to use. These 3 names are special in that the corresponding configuration will be auto-selected based on the OS you are on.
--   `includePath`: Folders to include for the autocompletion and syntax error generation engine. This won't affect the actual code compilation process, as that is handled by R itself and your `DESCRIPTION` / `src/Makevars` files, but getting this right will help your experience as you are tweaking your C++ files in VS Code. Two important things to note here are the inclusion of R's headers, which live in `"/Library/Frameworks/R.framework/Resources/include"`, and the headers specific to cpp11, which live in `"/Library/Frameworks/R.framework/Versions/Current/Resources/library/cpp11/include"`. You should always include the R headers, but if your project uses Rcpp rather than cpp11, you could alter that line to be `.../Rcpp/include` instead. Basically, anything in your `LinkingTo:` field of your DESCRIPTION file should be included here.
+-   `includePath`: Folders to include for the autocompletion and syntax error generation engine. This won't affect the actual code compilation process, as that is handled by R itself and your `DESCRIPTION` and `src/Makevars` files, but getting this right will improve your VS Code experience as you are tweaking your C++ files there. Two important things to note here are the inclusion of R's headers, which live in `"/Library/Frameworks/R.framework/Resources/include"`, and the headers specific to cpp11, which live in `"/Library/Frameworks/R.framework/Versions/Current/Resources/library/cpp11/include"`. You should always include the R headers, but if your project uses Rcpp rather than cpp11, you could alter that line to be `.../Rcpp/include` instead. Basically, anything in your `LinkingTo:` field of your DESCRIPTION file should be included here. Use `system.file()` to reveal where these headers are installed on your computer, e.g. `system.file("include", package = "cpp11")`.
 -   `macFrameworkPath`: The path to the Mac framework folder which contains the system header files. This one doesn't seem to be strictly necessary for this package, but may be useful for others.
 -   `compilerPath`: The compiler that would in theory be used to build the project. It also enables more accurate IntelliSense because from this the C++ standard library paths are inferred. This allows us to use things like `#include <algorithm>` and then autocomplete on everything in that header. It is probably fine to leave this as clang, but you can change it to gcc as well. The easiest way to do this is in the configuration UI mentioned earlier, under the Compiler path section.
 -   `cStandard`: Relevant if you are debugging C rather than C++ code (which does work!). R packages are typically compiled against C99, so this is probably a good default. Again, it controls how IntelliSense works.
@@ -311,7 +311,7 @@ blogdown::shortcode("youtube", id = "HqwSyy4bCDU", autoplay = "true")
 You can also *attach* the VS Code debugger to an existing R session.
 Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session *before* running `load_all()`.
 You'll also need get the PID for the R session.
-The easiest way to do this is `ps::ps_pid()`.
+The easiest way to do this is with either `Sys.getpid()` or `ps::ps_pid()`.
 
 You'll also need an *attach* configuration set in `launch.json`.
 You can append to your existing configuration and set something up that looks like this:
@@ -374,6 +374,14 @@ Because we didn't use `.at()` anywhere in the code, the compiler *never generate
 This isn't being "optimized out" at all, it was just never generated at all to begin with.
 We haven't found a great solution to this issue yet, but generally you can always access the internal SEXP of a cpp11 vector with `x.data_`, and then you can call any C level R function on that, like `REAL_ELT(x.data_, 0)`, in place of the `.at()` call.
 
+We have had partial success by explicitly instantiating the template class ahead of time, although this has not proven to be universally successful yet (in particular, it has failed to compile when used with the `writable` vectors in cpp11).
+This involves placing a line like this after `#include <cpp11.hpp>`, but before any code that tries to use a `doubles` vector.
+
+    template class cpp11::r_vector<double>;
+
+This forces the compiler to fully instantiate all of `doubles`, including all of its member functions, meaning they are available to you at debug time.
+If you do this, it is probably a good idea to remove this line after you have finished debugging.
+
 #### Settings
 
 If you hit `Command + ,` (i.e. command and comma), then you will be taken to a general settings menu for VS Code.
@@ -386,7 +394,7 @@ You may want to update this.
 
 Since you have to set up each R package with:
 
--   A `.vcode` folder with `launch.json` and and `c_cpp_properties.json`
+-   A `.vscode` folder with `launch.json` and `c_cpp_properties.json`
 -   A `tools` folder with `debug.R`
 -   An `.Rbuildignore` that ignores these
 
