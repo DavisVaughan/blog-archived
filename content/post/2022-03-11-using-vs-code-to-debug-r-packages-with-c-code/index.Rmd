@@ -269,9 +269,11 @@ This just means that for the purposes of autocompletion and syntax errors, VS Co
 
 I actually used VS Code to recently debug an [rlang issue](https://github.com/r-lib/rlang/issues/1376).
 We've already fixed the problem, but I'm going to walk through the issue in the following video to show how I tracked it down.
-It doesn't use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occuring from.
+It doesn't use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occurring from.
 
-TODO: Insert video here
+```{r, echo=FALSE}
+blogdown::shortcode("youtube", id = "HqwSyy4bCDU", autoplay = "true")
+```
 
 ### Attach configuration example
 
