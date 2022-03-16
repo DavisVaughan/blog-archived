@@ -146,6 +146,7 @@ usethis::edit_r_makevars()
 
 This should open your user level Makevars file in VS Code.
 At a minimum, for this C++11 based project we need to add `CXX11FLAGS=-O0 -g` to this file to instruct our compiler to compile without optimization (that's `-O0`) and include all debugging information (the `-g`).
+<!-- jenny comment -->
 Save this file and try to run `(lldb) Launch` again.
 This time it should work a little better.
 I obviously know exactly where the problem is here, so I'm going to narrow in on it fairly quickly.
