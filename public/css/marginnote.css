@@ -34,7 +34,7 @@ pre, p, table, li {
 @media all and (max-width: 1350px) {
   .marginnote {
     display: block;
-    float: left;
+    float: none;
     
     /* Adds a neat left indented look */
     left: 1rem;
