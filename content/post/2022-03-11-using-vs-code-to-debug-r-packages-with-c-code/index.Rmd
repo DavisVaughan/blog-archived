@@ -1,5 +1,5 @@
 ---
-title: Using VS Code to Debug R Packages with C++ Code
+title: Using VS Code to Debug R Packages with C or C++ Code
 author: Davis Vaughan
 date: '2022-03-11'
 slug: using-vs-code-to-debug-r-packages-with-cpp-code
@@ -21,6 +21,8 @@ Most of this post would not be possible without the work of [Kun Ren](https://re
 While this post doesn't take the exact same approach as his, it was still invaluable for getting started.
 
 I have also had many discussions with and insights from [Jenny Bryan](https://jennybryan.org) while trying to get this to work smoothly.
+
+If you are a VS Code expert and notice anything incorrect in this post, feel free to [open an issue](https://github.com/DavisVaughan/blog/issues) to help us improve it!
 
 ### My specs
 
@@ -147,7 +149,7 @@ At a minimum, this should look like:
 
     CXX11FLAGS=-O0 -g
 
-This is a C++11 based project, so we need to use CXX11FLAGS to set the relevant flags.
+This is a C++11 based project, so we need to use `CXX11FLAGS` to set the relevant flags.
 `-O0` is used to instruct our compiler to compile without optimization and `-g` is used to ensure that all debugging information is included.
 Save this file and try to run `(lldb) Launch` again.
 This time it should work a little better.
@@ -180,18 +182,16 @@ buggy_init(5L)
 
 Note that cpp11 vectors have `.begin()` and `.end()` member functions, so we could have also included the `<algorithm>` header and used `std::fill()` for this, which probably would have avoided this bug from the start!
 
-```{Rcpp, eval=FALSE}
-#include <cpp11.hpp>
-#include <algorithm>
+    #include <cpp11.hpp>
+    #include <algorithm>
 
-[[cpp11::register]]
-cpp11::writable::doubles buggy_init(cpp11::integers size) {
-  R_xlen_t c_size = static_cast<R_xlen_t>(size[0]);
-  cpp11::writable::doubles out(c_size);
-  std::fill(out.begin(), out.end(), 2);
-  return out;
-}
-```
+    [[cpp11::register]]
+    cpp11::writable::doubles buggy_init(cpp11::integers size) {
+      R_xlen_t c_size = static_cast<R_xlen_t>(size[0]);
+      cpp11::writable::doubles out(c_size);
+      std::fill(out.begin(), out.end(), 2);
+      return out;
+    }
 
 Pretty cool, right?
 
@@ -301,6 +301,7 @@ There is also a helper function in the Setup function section at the bottom of t
 I actually used VS Code to recently debug an [rlang issue](https://github.com/r-lib/rlang/issues/1376).
 We've already fixed the problem, but I'm going to walk through the issue in the following video to show how I tracked it down.
 It doesn't use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occurring from.
+Note that this video does have audio, unlike the others.
 
 ```{r, echo=FALSE}
 blogdown::shortcode("youtube", id = "HqwSyy4bCDU", autoplay = "true")
@@ -309,7 +310,7 @@ blogdown::shortcode("youtube", id = "HqwSyy4bCDU", autoplay = "true")
 ### Attach configuration example
 
 You can also *attach* the VS Code debugger to an existing R session.
-Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session *before* running `load_all()`.
+Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session *before* running `devtools::load_all()`.
 You'll also need get the PID for the R session.
 The easiest way to do this is with either `Sys.getpid()` or `ps::ps_pid()`.
 

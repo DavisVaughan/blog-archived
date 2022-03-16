@@ -1,5 +1,5 @@
 ---
-title: Using VS Code to Debug R Packages with C++ Code
+title: Using VS Code to Debug R Packages with C or C++ Code
 author: Davis Vaughan
 date: '2022-03-11'
 slug: using-vs-code-to-debug-r-packages-with-cpp-code
@@ -21,6 +21,7 @@ This post assumes a little working knowledge of lldb.</p>
 <p>Most of this post would not be possible without the work of <a href="https://renkun.me">Kun Ren</a>, who has a nice post on <a href="https://renkun.me/2022/03/06/my-recommendations-of-vs-code-extensions-for-r/">VS Code Extensions for R</a> and an example repo on using <a href="https://github.com/renkun-ken/vscode-cpp11-demo">VS Code with cpp11</a>.
 While this post doesn’t take the exact same approach as his, it was still invaluable for getting started.</p>
 <p>I have also had many discussions with and insights from <a href="https://jennybryan.org">Jenny Bryan</a> while trying to get this to work smoothly.</p>
+<p>If you are a VS Code expert and notice anything incorrect in this post, feel free to <a href="https://github.com/DavisVaughan/blog/issues">open an issue</a> to help us improve it!</p>
 <div id="my-specs" class="section level3">
 <h3>My specs</h3>
 <p>It is worth noting my personal setup, as the finer details of this post will vary a bit per operating system:</p>
@@ -108,7 +109,7 @@ Run the following in the R Terminal of VS Code:</p>
 <p>This should open your user level Makevars file in VS Code.
 At a minimum, this should look like:</p>
 <pre><code>CXX11FLAGS=-O0 -g</code></pre>
-<p>This is a C++11 based project, so we need to use CXX11FLAGS to set the relevant flags.
+<p>This is a C++11 based project, so we need to use <code>CXX11FLAGS</code> to set the relevant flags.
 <code>-O0</code> is used to instruct our compiler to compile without optimization and <code>-g</code> is used to ensure that all debugging information is included.
 Save this file and try to run <code>(lldb) Launch</code> again.
 This time it should work a little better.
@@ -128,7 +129,7 @@ So:</p>
 <pre class="r"><code>buggy_init(5L)
 #&gt; [1] 2 2 2 2 2</code></pre>
 <p>Note that cpp11 vectors have <code>.begin()</code> and <code>.end()</code> member functions, so we could have also included the <code>&lt;algorithm&gt;</code> header and used <code>std::fill()</code> for this, which probably would have avoided this bug from the start!</p>
-<pre class="cpp"><code>#include &lt;cpp11.hpp&gt;
+<pre><code>#include &lt;cpp11.hpp&gt;
 #include &lt;algorithm&gt;
 
 [[cpp11::register]]
@@ -222,13 +223,14 @@ To do this manually, you can use:</p>
 <h3>Debugging a real rlang issue</h3>
 <p>I actually used VS Code to recently debug an <a href="https://github.com/r-lib/rlang/issues/1376">rlang issue</a>.
 We’ve already fixed the problem, but I’m going to walk through the issue in the following video to show how I tracked it down.
-It doesn’t use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occurring from.</p>
+It doesn’t use the typical lldb inspection tools, but instead uses the fact that I can step one line at a time to figure out where the exact issue is occurring from.
+Note that this video does have audio, unlike the others.</p>
 <p>{{% youtube id="HqwSyy4bCDU" autoplay="true" %}}</p>
 </div>
 <div id="attach-configuration-example" class="section level3">
 <h3>Attach configuration example</h3>
 <p>You can also <em>attach</em> the VS Code debugger to an existing R session.
-Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session <em>before</em> running <code>load_all()</code>.
+Note that if you want to set breakpoints and have them work reliably after attaching, you should attach to the R session <em>before</em> running <code>devtools::load_all()</code>.
 You’ll also need get the PID for the R session.
 The easiest way to do this is with either <code>Sys.getpid()</code> or <code>ps::ps_pid()</code>.</p>
 <p>You’ll also need an <em>attach</em> configuration set in <code>launch.json</code>.
