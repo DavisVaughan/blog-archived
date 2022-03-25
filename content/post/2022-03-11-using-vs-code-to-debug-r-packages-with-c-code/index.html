@@ -27,9 +27,21 @@ While this post doesn’t take the exact same approach as his, it was still inva
 <p>It is worth noting my personal setup, as the finer details of this post will vary a bit per operating system:</p>
 <ul>
 <li>macOS Monterey 12.2.1</li>
-<li>R 4.1.1</li>
+<li>R 4.1.1 (<em>Non-notarized! See the next section.</em>)</li>
 </ul>
 <p>If you aren’t using a Mac, the absolute paths set in the configuration files below will need to be updated!</p>
+</div>
+<div id="non-notarized-r" class="section level3">
+<h3>Non-notarized R</h3>
+<p>The <a href="https://cran.r-project.org/bin/macosx/RMacOSX-FAQ.html#I-cannot-attach-debugger-to-R">R for macOS FAQ</a> has a bullet point named “I cannot attach a debugger to R.” This is particularly relevant for us, as it explains that new Apple computers require that all notarized applications use a “Hardened Runtime”, which ends up meaning that those applications can’t be utilized with a debugger like lldb.
+The R that you typically download is a notarized application, so it falls in this category.</p>
+<p>To get around this, you can download a non-notarized and unhardened version of R for macOS from <a href="https://mac.r-project.org">here</a> instead.
+You’ll probably want the build that looks something like <code>R-4.1-branch</code>.
+Pay careful attention to the OS.
+If you have an M1 Mac, then you’ll probably want the version built for the <code>big-sur</code> OS.
+Otherwise you have an Intel Mac, so you’ll want the version built for the <code>high-sierra</code> OS, which works on any macOS &gt;=10.13.
+It is generally easiest to install the package, i.e.
+<code>R-4.1-branch.pkg</code>, which comes with a GUI installer.</p>
 </div>
 <div id="downloading-visual-studio-code" class="section level3">
 <h3>Downloading Visual Studio Code</h3>
