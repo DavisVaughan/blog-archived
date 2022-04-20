@@ -1,0 +1,432 @@
+---
+title: ivs 0.1.0
+author: Davis Vaughan
+date: '2022-04-20'
+slug: ivs-0-1-0
+editor_options: 
+  chunk_output_type: console
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>I’m very excited to announce the first release of <a href="https://davisvaughan.github.io/ivs/">ivs</a> (said, “eye-vees”), a package dedicated to working with intervals.
+It introduces a new vector type, the <strong>i</strong>nterval <strong>v</strong>ector, which is generally just referred to as an <strong>iv</strong> throughout the package.</p>
+<p>You can install ivs from CRAN with:</p>
+<pre class="r"><code>install.packages(&quot;ivs&quot;)</code></pre>
+<p>ivs is loaded with tools for working with interval vectors.
+In particular, it provides utilities for:</p>
+<ul>
+<li>Grouping / Merging overlapping intervals.</li>
+<li>Splitting intervals on overlapping endpoints.</li>
+<li>Determining how two ivs are related, i.e. does one interval precede, follow, or overlap another?</li>
+<li>Applying set theoretical operations like intersection, union, and complement on two ivs.</li>
+</ul>
+<p>The rest of this blog post will explore some of this functionality through a number of practical examples.</p>
+<pre class="r"><code>library(ivs)
+library(clock)
+library(dplyr)</code></pre>
+<div id="creating-an-interval-vector" class="section level2">
+<h2>Creating an interval vector</h2>
+<p>Interval vectors are typically created from two parallel vectors representing the starts (inclusive) and ends (exclusive) of the intervals:</p>
+<pre class="r"><code>starts &lt;- c(1, 5, 10, 3)
+ends &lt;- c(6, 9, 12, 4)
+
+iv(starts, ends)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[4]&gt;
+## [1] [1, 6)   [5, 9)   [10, 12) [3, 4)</code></pre>
+<p>ivs is designed to play nicely with the tidyverse, and most of the time <code>start</code> and <code>end</code> will already be columns in an existing data frame.</p>
+<p>ivs is also designed to be <em>generic</em>.
+It is built on top of <a href="https://vctrs.r-lib.org">vctrs</a>, which gives it the ability to use any comparable type as the start/end vectors.</p>
+<p>This includes dates and date-times:</p>
+<pre class="r"><code>starts &lt;- as.Date(&quot;2019-01-01&quot;) + 0:2
+ends &lt;- starts + c(2, 5, 10)
+
+iv(starts, ends)</code></pre>
+<pre><code>## &lt;iv&lt;date&gt;[3]&gt;
+## [1] [2019-01-01, 2019-01-03) [2019-01-02, 2019-01-07) [2019-01-03, 2019-01-13)</code></pre>
+<p>the <code>integer64</code> type from <a href="https://cran.r-project.org/web/packages/bit64/index.html">bit64</a>:</p>
+<pre class="r"><code>start &lt;- bit64::as.integer64(&quot;900000000000&quot;)
+end &lt;- start + 1234
+
+iv(start, end)</code></pre>
+<pre><code>## &lt;iv&lt;integer64&gt;[1]&gt;
+## [1] [900000000000, 900000001234)</code></pre>
+<p>or the <code>year_month_day</code> type from <a href="https://clock.r-lib.org">clock</a>:</p>
+<pre class="r"><code>start &lt;- year_month_day(c(2019, 2020), c(1, 3))
+end &lt;- year_month_day(c(2020, 2020), c(2, 6))
+
+iv(start, end)</code></pre>
+<pre><code>## &lt;iv&lt;year_month_day&lt;month&gt;&gt;[2]&gt;
+## [1] [2019-01, 2020-02) [2020-03, 2020-06)</code></pre>
+<p>Interval vectors are always composed of right-open intervals, and each individual interval in the vector must satisfy <code>start &lt; end</code>.
+I say more on the practical reasons for this <a href="https://davisvaughan.github.io/ivs/articles/ivs.html#structure">in the Getting Started vignette</a> if you are interested in learning more.</p>
+</div>
+<div id="grouping-by-overlaps" class="section level2">
+<h2>Grouping by overlaps</h2>
+<p>One of the key features of ivs is that it makes identifying and merging overlaps as easy as possible.</p>
+<p>Imagine you work for AWS (Amazon Web Services) and you have a database that tracks costs racked up by users that are utilizing your services.
+The date ranges below represent the intervals over which the cost was accrued, and the intervals don’t overlap for a given <code>(user, service)</code> pair.</p>
+<pre class="r"><code>costs &lt;- tribble(
+  ~user, ~service, ~from, ~to, ~cost,
+  1L, &quot;a&quot;, &quot;2019-01-01&quot;, &quot;2019-01-05&quot;, 200.5,
+  1L, &quot;a&quot;, &quot;2019-01-12&quot;, &quot;2019-01-13&quot;, 15.6,
+  1L, &quot;b&quot;, &quot;2019-01-03&quot;, &quot;2019-01-10&quot;, 500.3,
+  2L, &quot;a&quot;, &quot;2019-01-02&quot;, &quot;2019-01-03&quot;, 25.6,
+  2L, &quot;b&quot;, &quot;2019-01-01&quot;, &quot;2019-01-06&quot;, 217.3,
+  2L, &quot;c&quot;, &quot;2019-01-03&quot;, &quot;2019-01-04&quot;, 30,
+  2L, &quot;c&quot;, &quot;2019-01-05&quot;, &quot;2019-01-07&quot;, 66.2
+) %&gt;%
+  mutate(
+    from = as.Date(from),
+    to = as.Date(to)
+  )
+
+costs</code></pre>
+<pre><code>## # A tibble: 7 × 5
+##    user service from       to          cost
+##   &lt;int&gt; &lt;chr&gt;   &lt;date&gt;     &lt;date&gt;     &lt;dbl&gt;
+## 1     1 a       2019-01-01 2019-01-05 200. 
+## 2     1 a       2019-01-12 2019-01-13  15.6
+## 3     1 b       2019-01-03 2019-01-10 500. 
+## 4     2 a       2019-01-02 2019-01-03  25.6
+## 5     2 b       2019-01-01 2019-01-06 217. 
+## 6     2 c       2019-01-03 2019-01-04  30  
+## 7     2 c       2019-01-05 2019-01-07  66.2</code></pre>
+<p>You might be interested in identifying the contiguous blocks of time that a particular service was in use, regardless of who was using it.
+In graphical form, that might look like this (notice how the overlapping <code>a</code> and overlapping <code>b</code> intervals have been combined):</p>
+<p><img src="omnigraffle/ivs/groups.png" /></p>
+<p>To solve this problem, we will first convert our <code>from/to</code> dates into a true interval vector using <code>iv()</code>.</p>
+<pre class="r"><code>costs &lt;- costs %&gt;%
+  mutate(
+    interval = iv(from, to), 
+    .keep = &quot;unused&quot;
+  )
+
+costs</code></pre>
+<pre><code>## # A tibble: 7 × 4
+##    user service  cost                 interval
+##   &lt;int&gt; &lt;chr&gt;   &lt;dbl&gt;               &lt;iv&lt;date&gt;&gt;
+## 1     1 a       200.  [2019-01-01, 2019-01-05)
+## 2     1 a        15.6 [2019-01-12, 2019-01-13)
+## 3     1 b       500.  [2019-01-03, 2019-01-10)
+## 4     2 a        25.6 [2019-01-02, 2019-01-03)
+## 5     2 b       217.  [2019-01-01, 2019-01-06)
+## 6     2 c        30   [2019-01-03, 2019-01-04)
+## 7     2 c        66.2 [2019-01-05, 2019-01-07)</code></pre>
+<p>Next, we’ll use <code>iv_groups()</code> on the <code>interval</code> column to merge together all of the overlapping intervals.
+It returns the intervals that remain after all of the overlaps have been merged.
+Since we want to do this on a per-service basis, we’ll group by <code>service</code>.</p>
+<pre class="r"><code>services &lt;- costs %&gt;%
+  group_by(service) %&gt;%
+  summarise(interval = iv_groups(interval), .groups = &quot;keep&quot;)
+
+# Note how this merged the two overlapping `service == &quot;b&quot;` intervals
+# of [2019-01-03, 2019-01-10) and [2019-01-01, 2019-01-06) into one
+# wider interval of [2019-01-01, 2019-01-10)
+services </code></pre>
+<pre><code>## # A tibble: 5 × 2
+## # Groups:   service [3]
+##   service                 interval
+##   &lt;chr&gt;                 &lt;iv&lt;date&gt;&gt;
+## 1 a       [2019-01-01, 2019-01-05)
+## 2 a       [2019-01-12, 2019-01-13)
+## 3 b       [2019-01-01, 2019-01-10)
+## 4 c       [2019-01-03, 2019-01-04)
+## 5 c       [2019-01-05, 2019-01-07)</code></pre>
+<p>Note that we used <code>summarise()</code> here rather than <code>mutate()</code>.
+<code>iv_groups()</code> will return a new interval vector that is <em>shorter</em> than the original input, so we can’t use <code>mutate()</code>.
+Instead, we are taking advantage of the relatively new feature of <code>summarise()</code> which allows you to return a per-group result with length &gt;1.</p>
+<p>You also might be interested in the intervals corresponding to when a service <em>wasn’t</em> being used.
+I’m getting ahead of myself a little bit, but you could use one of the set operation functions, <code>iv_complement()</code>, for this.
+We’ll provide (optional) lower and upper bounds for the universe over which to take the complement.</p>
+<pre class="r"><code>lower &lt;- as.Date(&quot;2019-01-01&quot;)
+upper &lt;- as.Date(&quot;2019-01-15&quot;)
+
+services %&gt;%
+  summarise(
+    not_in_use = iv_complement(interval, lower = lower, upper = upper),
+    .groups = &quot;drop&quot;
+  )</code></pre>
+<pre><code>## # A tibble: 6 × 2
+##   service               not_in_use
+##   &lt;chr&gt;                 &lt;iv&lt;date&gt;&gt;
+## 1 a       [2019-01-05, 2019-01-12)
+## 2 a       [2019-01-13, 2019-01-15)
+## 3 b       [2019-01-10, 2019-01-15)
+## 4 c       [2019-01-01, 2019-01-03)
+## 5 c       [2019-01-04, 2019-01-05)
+## 6 c       [2019-01-07, 2019-01-15)</code></pre>
+<p>Let’s go back to <code>costs</code> and answer one more question.
+Let’s say you don’t care about <code>service</code> anymore, and you just want to aggregate the costs over any contiguous date range for a particular <code>user</code>.
+For example, user <code>1</code> used service <code>a</code> and <code>b</code> simultaneously, so you’d like to combine those costs into a single larger interval.</p>
+<p>We can try to use <code>iv_groups()</code> here, but this isn’t quite what we need because it doesn’t give us a chance to aggregate the costs:</p>
+<pre class="r"><code>costs %&gt;%
+  group_by(user) %&gt;%
+  summarise(interval = iv_groups(interval), .groups = &quot;drop&quot;)</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##    user                 interval
+##   &lt;int&gt;               &lt;iv&lt;date&gt;&gt;
+## 1     1 [2019-01-01, 2019-01-10)
+## 2     1 [2019-01-12, 2019-01-13)
+## 3     2 [2019-01-01, 2019-01-07)</code></pre>
+<p>Instead, we’ll use <code>iv_identify_group()</code>.
+This returns a new interval vector that has the same length as the old one, and identifies which of the 3 groups returned above that the original interval falls in.</p>
+<pre class="r"><code>users &lt;- costs %&gt;%
+  select(-service) %&gt;%
+  group_by(user) %&gt;%
+  mutate(user_interval = iv_identify_group(interval))
+
+users</code></pre>
+<pre><code>## # A tibble: 7 × 4
+## # Groups:   user [2]
+##    user  cost                 interval            user_interval
+##   &lt;int&gt; &lt;dbl&gt;               &lt;iv&lt;date&gt;&gt;               &lt;iv&lt;date&gt;&gt;
+## 1     1 200.  [2019-01-01, 2019-01-05) [2019-01-01, 2019-01-10)
+## 2     1  15.6 [2019-01-12, 2019-01-13) [2019-01-12, 2019-01-13)
+## 3     1 500.  [2019-01-03, 2019-01-10) [2019-01-01, 2019-01-10)
+## 4     2  25.6 [2019-01-02, 2019-01-03) [2019-01-01, 2019-01-07)
+## 5     2 217.  [2019-01-01, 2019-01-06) [2019-01-01, 2019-01-07)
+## 6     2  30   [2019-01-03, 2019-01-04) [2019-01-01, 2019-01-07)
+## 7     2  66.2 [2019-01-05, 2019-01-07) [2019-01-01, 2019-01-07)</code></pre>
+<p>This gives us something we can group on so we can <code>sum()</code> up the costs:</p>
+<pre class="r"><code>users %&gt;%
+  group_by(user, user_interval) %&gt;%
+  summarise(cost = sum(cost), .groups = &quot;drop&quot;)</code></pre>
+<pre><code>## # A tibble: 3 × 3
+##    user            user_interval  cost
+##   &lt;int&gt;               &lt;iv&lt;date&gt;&gt; &lt;dbl&gt;
+## 1     1 [2019-01-01, 2019-01-10) 701. 
+## 2     1 [2019-01-12, 2019-01-13)  15.6
+## 3     2 [2019-01-01, 2019-01-07) 339.</code></pre>
+</div>
+<div id="locating-overlaps" class="section level2">
+<h2>Locating overlaps</h2>
+<p>While <code>iv_groups()</code> is useful for working with overlaps in a single interval vector, you might also find yourself in a situation where you need to identify relationships between multiple vectors.
+This might be between two interval vectors (where you are detecting if one overlaps another in some way) or between a regular vector and an interval vector (where you want to know if the elements of the vector lie between any of the intervals).</p>
+<p>For example, you might want to locate where these two interval vectors overlap:</p>
+<pre class="r"><code># iv_pairs() is a useful way to create small ivs from individual intervals
+needles &lt;- iv_pairs(c(1, 5), c(3, 7), c(10, 12))
+needles</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[3]&gt;
+## [1] [1, 5)   [3, 7)   [10, 12)</code></pre>
+<pre class="r"><code>haystack &lt;- iv_pairs(c(1, 6), c(12, 13), c(1, 2), c(7, 8), c(4, 5))
+haystack</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[5]&gt;
+## [1] [1, 6)   [12, 13) [1, 2)   [7, 8)   [4, 5)</code></pre>
+<p><img src="omnigraffle/ivs/locate.png" /></p>
+<p>Ideally you’d like to be notified of the fact that <code>[1, 5)</code> from <code>needles</code> overlaps with <code>[1, 6)</code>, <code>[1, 2)</code> and <code>[4, 5)</code> from <code>haystack</code>.
+<code>iv_locate_overlaps()</code> allows you to do exactly this, and returns a data frame of the locations where the two interval vectors overlap.</p>
+<pre class="r"><code>locations &lt;- iv_locate_overlaps(needles, haystack)
+locations</code></pre>
+<pre><code>##   needles haystack
+## 1       1        1
+## 2       1        3
+## 3       1        5
+## 4       2        1
+## 5       2        5
+## 6       3       NA</code></pre>
+<p>You can hand this data frame off to <code>iv_align()</code>, along with the original inputs, and it will join them together based on their overlapping locations:</p>
+<pre class="r"><code>iv_align(needles, haystack, locations = locations)</code></pre>
+<pre><code>##    needles haystack
+## 1   [1, 5)   [1, 6)
+## 2   [1, 5)   [1, 2)
+## 3   [1, 5)   [4, 5)
+## 4   [3, 7)   [1, 6)
+## 5   [3, 7)   [4, 5)
+## 6 [10, 12) [NA, NA)</code></pre>
+<p>You’ll notice that <code>[10, 12)</code> from <code>needles</code> didn’t overlap with anything from <code>haystack</code>, so it was aligned with a missing interval.</p>
+<p><code>iv_locate_overlaps()</code> has a number of options to tweak the type of overlap you are looking for.
+For example, you can change the <code>type</code> from its default value of <code>"any"</code> overlap to instead restrict it to cases where <code>needles</code> is <code>"within"</code> the <code>haystack</code> intervals, or to cases where it <code>"contains"</code> them.
+You can also change what happens when there is <code>no_match</code>, like with <code>[10, 12)</code> from above.
+If you don’t want to see unmatched needles in the result, you can <code>"drop"</code> them:</p>
+<pre class="r"><code>locations &lt;- iv_locate_overlaps(needles, haystack, no_match = &quot;drop&quot;)
+iv_align(needles, haystack, locations = locations)</code></pre>
+<pre><code>##   needles haystack
+## 1  [1, 5)   [1, 6)
+## 2  [1, 5)   [1, 2)
+## 3  [1, 5)   [4, 5)
+## 4  [3, 7)   [1, 6)
+## 5  [3, 7)   [4, 5)</code></pre>
+<p>Other related functionality includes:</p>
+<ul>
+<li><code>iv_locate_precedes()</code> and <code>iv_locate_follows()</code> to determine where one iv precedes or follows another.</li>
+<li><code>iv_locate_between()</code> to determine if elements of a vector fall <em>between</em> the intervals in an iv.</li>
+<li><code>iv_overlaps()</code> which works like <code>iv_locate_overlaps()</code> but just returns a logical vector detecting if there were any overlapping intervals at all.</li>
+</ul>
+</div>
+<div id="counting-overlaps" class="section level2">
+<h2>Counting overlaps</h2>
+<p>Sometimes you just need the counts of the number of overlaps rather than the actual locations of them.
+For example, say your business has a subscription service and you’d like to compute a rolling monthly count of the total number of currently active subscriptions (i.e. in January 2019, how many subscriptions were active?).
+Customers are only allowed to have one subscription active at once, but they may cancel it and reactivate it at any time.
+If a customer was active at any point during the month, then they are counted in that month.</p>
+<pre class="r"><code>enrollments &lt;- tribble(
+  ~name,      ~start,          ~end,
+  &quot;Amy&quot;,      &quot;1, Jan, 2017&quot;,  &quot;30, Jul, 2018&quot;,
+  &quot;Franklin&quot;, &quot;1, Jan, 2017&quot;,  &quot;19, Feb, 2017&quot;,
+  &quot;Franklin&quot;, &quot;5, Jun, 2017&quot;,  &quot;4, Feb, 2018&quot;,
+  &quot;Franklin&quot;, &quot;21, Oct, 2018&quot;, &quot;9, Mar, 2019&quot;,
+  &quot;Samir&quot;,    &quot;1, Jan, 2017&quot;,  &quot;4, Feb, 2017&quot;,
+  &quot;Samir&quot;,    &quot;5, Apr, 2017&quot;,  &quot;12, Jun, 2018&quot;
+)
+
+# Parse these into &quot;day&quot; precision year-month-day objects
+enrollments &lt;- enrollments %&gt;%
+  mutate(
+    start = year_month_day_parse(start, format = &quot;%d, %b, %Y&quot;),
+    end = year_month_day_parse(end, format = &quot;%d, %b, %Y&quot;),
+  )
+
+enrollments</code></pre>
+<pre><code>## # A tibble: 6 × 3
+##   name     start      end       
+##   &lt;chr&gt;    &lt;ymd&lt;day&gt;&gt; &lt;ymd&lt;day&gt;&gt;
+## 1 Amy      2017-01-01 2018-07-30
+## 2 Franklin 2017-01-01 2017-02-19
+## 3 Franklin 2017-06-05 2018-02-04
+## 4 Franklin 2018-10-21 2019-03-09
+## 5 Samir    2017-01-01 2017-02-04
+## 6 Samir    2017-04-05 2018-06-12</code></pre>
+<p>Even though we have day precision information, we only actually need month precision intervals to answer this question.
+We’ll use <code>calendar_narrow()</code> from clock to convert our <code>"day"</code> precision dates to <code>"month"</code> precision ones to reflect this.
+We’ll also add 1 month to the <code>end</code> intervals to reflect the fact that the end month is open (remember, ivs are half-open).</p>
+<pre class="r"><code>enrollments &lt;- enrollments %&gt;%
+  mutate(
+    start = calendar_narrow(start, &quot;month&quot;),
+    end = calendar_narrow(end, &quot;month&quot;) + 1L
+  )
+
+enrollments</code></pre>
+<pre><code>## # A tibble: 6 × 3
+##   name     start        end         
+##   &lt;chr&gt;    &lt;ymd&lt;month&gt;&gt; &lt;ymd&lt;month&gt;&gt;
+## 1 Amy      2017-01      2018-08     
+## 2 Franklin 2017-01      2017-03     
+## 3 Franklin 2017-06      2018-03     
+## 4 Franklin 2018-10      2019-04     
+## 5 Samir    2017-01      2017-03     
+## 6 Samir    2017-04      2018-07</code></pre>
+<pre class="r"><code>enrollments &lt;- enrollments %&gt;%
+  mutate(active = iv(start, end), .keep = &quot;unused&quot;)
+
+enrollments</code></pre>
+<pre><code>## # A tibble: 6 × 2
+##   name                 active
+##   &lt;chr&gt;      &lt;iv&lt;ymd&lt;month&gt;&gt;&gt;
+## 1 Amy      [2017-01, 2018-08)
+## 2 Franklin [2017-01, 2017-03)
+## 3 Franklin [2017-06, 2018-03)
+## 4 Franklin [2018-10, 2019-04)
+## 5 Samir    [2017-01, 2017-03)
+## 6 Samir    [2017-04, 2018-07)</code></pre>
+<p>To answer this question, we are going to need to create a sequential vector of months that span the entire range of intervals.
+This starts at the smallest <code>start</code> and goes to the largest <code>end</code>.
+Because the <code>end</code> is half-open, there won’t be any hits for that month, so we won’t include it.</p>
+<pre class="r"><code>bounds &lt;- range(enrollments$active)
+lower &lt;- iv_start(bounds[[1]])
+upper &lt;- iv_end(bounds[[2]]) - 1L
+
+months &lt;- tibble(month = seq(lower, upper, by = 1))
+
+months</code></pre>
+<pre><code>## # A tibble: 27 × 1
+##    month       
+##    &lt;ymd&lt;month&gt;&gt;
+##  1 2017-01     
+##  2 2017-02     
+##  3 2017-03     
+##  4 2017-04     
+##  5 2017-05     
+##  6 2017-06     
+##  7 2017-07     
+##  8 2017-08     
+##  9 2017-09     
+## 10 2017-10     
+## # … with 17 more rows</code></pre>
+<p>To finish up, we need to add a column to <code>months</code> to represent the number of subscriptions that were active in that month.
+To do this we can use <code>iv_count_between()</code>, which returns an integer vector corresponding to the number of times the <code>i</code>-th month fell between any of the intervals in the active subscription interval vector.</p>
+<pre class="r"><code>months &lt;- months %&gt;%
+  mutate(count = iv_count_between(month, enrollments$active))
+
+months</code></pre>
+<pre><code>## # A tibble: 27 × 2
+##    month        count
+##    &lt;ymd&lt;month&gt;&gt; &lt;int&gt;
+##  1 2017-01          3
+##  2 2017-02          3
+##  3 2017-03          1
+##  4 2017-04          2
+##  5 2017-05          2
+##  6 2017-06          3
+##  7 2017-07          3
+##  8 2017-08          3
+##  9 2017-09          3
+## 10 2017-10          3
+## # … with 17 more rows</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/number-of-active-enrollments-1.png" title="Line chart of monthly enrollments over time with a slight decrease in enrollments over the years" alt="Line chart of monthly enrollments over time with a slight decrease in enrollments over the years" width="672" /></p>
+<p>Also available are <code>iv_count_overlaps()</code>, <code>iv_count_precedes()</code>, and <code>iv_count_follows()</code> for counting relationships between two ivs.</p>
+</div>
+<div id="set-operations" class="section level2">
+<h2>Set operations</h2>
+<p>There are a number of set theoretical operations that you can use on ivs.
+These are:</p>
+<ul>
+<li><code>iv_complement()</code></li>
+<li><code>iv_union()</code></li>
+<li><code>iv_intersect()</code></li>
+<li><code>iv_difference()</code></li>
+<li><code>iv_symmetric_difference()</code></li>
+</ul>
+<p><code>iv_complement()</code> works on a single iv, while all the others work on two ivs at a time.
+The easiest way to think about these functions is to imagine <code>iv_groups()</code> being called on each of the inputs first (to reduce them down to their minimal form) before applying the operation.</p>
+<p><code>iv_complement()</code> computes the set complement of the intervals in a single iv.</p>
+<pre class="r"><code>x &lt;- iv_pairs(c(1, 3), c(2, 5), c(10, 12), c(13, 15))
+x</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[4]&gt;
+## [1] [1, 3)   [2, 5)   [10, 12) [13, 15)</code></pre>
+<pre class="r"><code>iv_complement(x)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[2]&gt;
+## [1] [5, 10)  [12, 13)</code></pre>
+<p><img src="omnigraffle/ivs/complement.png" /></p>
+<p>By default, <code>iv_complement()</code> uses the smallest/largest values of its input as the bounds to compute the complement over, but, as we showed back in the <code>iv_groups()</code> section, you can supply bounds explicitly with <code>lower</code> and <code>upper</code>:</p>
+<pre class="r"><code>iv_complement(x, upper = 20)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[3]&gt;
+## [1] [5, 10)  [12, 13) [15, 20)</code></pre>
+<p><img src="omnigraffle/ivs/complement-upper.png" /></p>
+<p><code>iv_union()</code> takes the union of two ivs.
+It answers the question, “Which intervals are in <code>x</code> or <code>y</code>?”</p>
+<pre class="r"><code>y &lt;- iv_pairs(c(4, 5), c(13, 16), c(14, 18))
+
+x</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[4]&gt;
+## [1] [1, 3)   [2, 5)   [10, 12) [13, 15)</code></pre>
+<pre class="r"><code>y</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[3]&gt;
+## [1] [4, 5)   [13, 16) [14, 18)</code></pre>
+<pre class="r"><code>iv_union(x, y)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[3]&gt;
+## [1] [1, 5)   [10, 12) [13, 18)</code></pre>
+<p><img src="omnigraffle/ivs/union.png" /></p>
+<p><code>iv_intersect()</code> takes the intersection of two ivs.
+It answers the question, “Which intervals are in <code>x</code> and <code>y</code>?”</p>
+<pre class="r"><code>iv_intersect(x, y)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[2]&gt;
+## [1] [4, 5)   [13, 15)</code></pre>
+<p><img src="omnigraffle/ivs/intersect.png" /></p>
+<p><code>iv_difference()</code> takes the asymmetrical difference of two ivs.
+It answers the question, “Which intervals are in <code>x</code> but not <code>y</code>?”</p>
+<pre class="r"><code>iv_difference(x, y)</code></pre>
+<pre><code>## &lt;iv&lt;double&gt;[2]&gt;
+## [1] [1, 4)   [10, 12)</code></pre>
+<p><img src="omnigraffle/ivs/difference.png" /></p>
+</div>
+<div id="inspiration" class="section level2">
+<h2>Inspiration</h2>
+<p>ivs was inspired by quite a few places!</p>
+<ul>
+<li><a href="https://github.com/Bioconductor/IRanges">IRanges</a> is a Bioconductor package that served as the biggest inspiration for this package. It is mainly focused on integer intervals for use with genomics, and uses S4 in a way that unfortunately means that their interval objects can’t currently be used as columns in a tibble, but is otherwise a really impressive package.</li>
+<li><a href="https://cse.unl.edu/~choueiry/Documents/Allen-CACM1983.pdf">Maintaining Knowledge about Temporal Intervals</a> is a paper by James Allen that a number of these functions are based on. It is also a great primer on integer algebra.</li>
+<li><a href="https://github.com/Rdatatable/data.table">data.table</a> contains a function named <code>foverlaps()</code> for detecting different types of overlaps. It was also inspired by <code>IRanges::findOverlaps()</code>. They also have support for non-equi joins, which can also accomplish some of this.</li>
+</ul>
+</div>
