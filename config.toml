@@ -2,7 +2,7 @@ theme = "hugo-theme-blueberry-detox"
 baseURL = "https://blog.davisvaughan.com/"
 languageCode = "en-us"
 title = "Davis Vaughan's Blog"
-ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$"]
 
 [params]
 
